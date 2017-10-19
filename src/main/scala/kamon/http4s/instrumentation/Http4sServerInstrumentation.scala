@@ -78,7 +78,7 @@ object HttpServerServiceWrapper {
   private def onFinish(requestSpan: Span, start: Long)(r: Attempt[MaybeResponse]): Attempt[MaybeResponse] = {
     import cats.implicits._
 
-    val elapsedTime = System.nanoTime() - start
+    val elapsedTime = Clock.relativeNanoTimestamp() - start
 
     r.map { response =>
       val code = response.cata(_.status, Status.NotFound).code
@@ -97,6 +97,8 @@ object HttpServerServiceWrapper {
 
           if (code == StatusCodes.NotFound)
             requestSpan.setOperationName("not-found")
+
+          requestSpan.finish()
         }
       }.onError { cause =>
         AbnormalTermination.record(elapsedTime)
