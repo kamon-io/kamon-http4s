@@ -16,17 +16,15 @@
 
 package kamon.http4s.instrumentation
 
-import java.util.concurrent.Callable
-
 import fs2.util.Attempt
 import fs2.{Stream, Task}
 import kamon.Kamon
-import kamon.agent.libs.net.bytebuddy.implementation.bind.annotation.{RuntimeType, SuperCall}
 import kamon.agent.scala.KamonInstrumentation
 import kamon.context.Context
 import kamon.http4s.Http4s
 import kamon.http4s.Metrics.ResponseMetrics._
 import kamon.http4s.Metrics.{AbnormalTermination, ActiveRequests}
+import kamon.http4s.instrumentation.advisor.Http4sServerAdvisor
 import kamon.trace.Span
 import kamon.util.Clock
 import org.http4s._
@@ -34,18 +32,8 @@ import org.http4s._
 class Http4sServerInstrumentation extends KamonInstrumentation {
   forTargetType("org.http4s.server.Router$") { builder =>
     builder
-      .withInterceptorFor(method("apply"), ApplyMethodInterceptor)
+      .withAdvisorFor(method("apply"), classOf[Http4sServerAdvisor])
       .build()
-  }
-}
-
-/**
-  * Interceptor for org.http4s.server.Router$::apply
-  */
-object ApplyMethodInterceptor {
-  @RuntimeType
-  def around(@SuperCall callable: Callable[_]): AnyRef = {
-    HttpServerServiceWrapper.wrap(callable.call())
   }
 }
 
@@ -53,7 +41,6 @@ object HttpServerServiceWrapper {
   def wrap(obj: Any):HttpService = {
 
     val service = obj.asInstanceOf[HttpService]
-
     Service.lift { request  =>
       ActiveRequests.increment()
       val incomingContext = decodeContext(request)
@@ -89,15 +76,13 @@ object HttpServerServiceWrapper {
           if (code < 200) Responses1xx.record(elapsedTime)
           else if (code < 300) Responses2xx.record(elapsedTime)
           else if (code < 400) Responses3xx.record(elapsedTime)
-          else if (code < 500) Responses4xx.record(elapsedTime)
-          else Responses5xx.record(elapsedTime)
-
-          if (isError(code))
+          else if (code < 500) {
+            if (code == StatusCodes.NotFound) requestSpan.setOperationName("not-found")
+            Responses4xx.record(elapsedTime)
+          } else {
             requestSpan.addError("error")
-
-          if (code == StatusCodes.NotFound)
-            requestSpan.setOperationName("not-found")
-
+            Responses5xx.record(elapsedTime)
+          }
           requestSpan.finish()
         }
       }.onError { cause =>
