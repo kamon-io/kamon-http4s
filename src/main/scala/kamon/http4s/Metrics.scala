@@ -32,7 +32,7 @@ object Metrics {
     */
 
   val  AbnormalTermination =  Kamon.histogram("abnormal-termination").refine(Map("component" -> "http4s-server"))
-  val  ActiveRequests =  Kamon.minMaxCounter("active-requests").refine(Map("component" -> "http4s-server"))
+  val  ActiveRequests =  Kamon.rangeSampler("active-requests").refine(Map("component" -> "http4s-server"))
 
   object ResponseMetrics {
     private val responseMetric = Kamon.histogram("http-responses", time.nanoseconds)

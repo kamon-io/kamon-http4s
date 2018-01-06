@@ -9,7 +9,7 @@ import kamon.http4s.instrumentation.HttpServerServiceWrapper;
  */
 public class Http4sServerAdvisor {
     @Advice.OnMethodExit
-    public static void enter(@Advice.Return(readOnly = false, typing = Typing.DYNAMIC) Object httpService) {
+    public static void exit(@Advice.Return(readOnly = false, typing = Typing.DYNAMIC) Object httpService) {
         httpService = HttpServerServiceWrapper.wrap(httpService);
     }
 }

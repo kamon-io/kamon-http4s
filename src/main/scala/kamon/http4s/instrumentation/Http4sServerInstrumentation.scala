@@ -26,7 +26,6 @@ import kamon.http4s.Metrics.ResponseMetrics._
 import kamon.http4s.Metrics.{AbnormalTermination, ActiveRequests}
 import kamon.http4s.instrumentation.advisor.Http4sServerAdvisor
 import kamon.trace.Span
-import kamon.util.Clock
 import org.http4s._
 
 class Http4sServerInstrumentation extends KamonInstrumentation {
@@ -38,8 +37,8 @@ class Http4sServerInstrumentation extends KamonInstrumentation {
 }
 
 object HttpServerServiceWrapper {
-  def wrap(obj: Any):HttpService = {
 
+  def wrap(obj: Any):HttpService = {
     val service = obj.asInstanceOf[HttpService]
     Service.lift { request  =>
       ActiveRequests.increment()
@@ -52,12 +51,10 @@ object HttpServerServiceWrapper {
         .withTag("component", "http4s-server")
         .start()
 
-      val context = Context.create(Span.ContextKey, serverSpan)
-
-      Kamon.withContext(context) {
+      Kamon.withContext(Context.create(Span.ContextKey, serverSpan)) {
         service(request)
           .attempt
-          .flatMap(onFinish(serverSpan, Clock.relativeNanoTimestamp())(_).fold(Task.fail, Task.now))
+          .flatMap(onFinish(serverSpan, System.nanoTime())(_).fold(Task.fail, Task.now))
       }
     }
   }
@@ -65,7 +62,7 @@ object HttpServerServiceWrapper {
   private def onFinish(requestSpan: Span, start: Long)(r: Attempt[MaybeResponse]): Attempt[MaybeResponse] = {
     import cats.implicits._
 
-    val elapsedTime = Clock.relativeNanoTimestamp() - start
+    val elapsedTime = System.nanoTime() - start
 
     r.map { response =>
       val code = response.cata(_.status, Status.NotFound).code
@@ -73,6 +70,7 @@ object HttpServerServiceWrapper {
       def capture(body: EntityBody) = body.onFinalize[Task] {
         Task.delay {
           ActiveRequests.decrement()
+          println("elapsed =>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>. " + elapsedTime)
           if (code < 200) Responses1xx.record(elapsedTime)
           else if (code < 300) Responses2xx.record(elapsedTime)
           else if (code < 400) Responses3xx.record(elapsedTime)
@@ -83,7 +81,7 @@ object HttpServerServiceWrapper {
             requestSpan.addError("error")
             Responses5xx.record(elapsedTime)
           }
-          requestSpan.finish()
+          requestSpan.finish(Kamon.clock().toInstant(elapsedTime))
         }
       }.onError { cause =>
         AbnormalTermination.record(elapsedTime)

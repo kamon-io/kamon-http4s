@@ -13,10 +13,10 @@
  * =========================================================================================
  */
 
-val kamonCore       = "io.kamon"         %% "kamon-core"                     % "1.0.0-RC1"
-val kamonTestkit    = "io.kamon"         %% "kamon-testkit"                  % "1.0.0-RC1"
+val kamonCore       = "io.kamon"         %% "kamon-core"                     % "1.0.0-RC7"
+val kamonTestkit    = "io.kamon"         %% "kamon-testkit"                  % "1.0.0-RC7"
 
-val scalaExtension  = "io.kamon"         %% "agent-scala-extension"          % "0.0.6-experimental"
+val scalaExtension  = "io.kamon"         %% "agent-scala-extension"          % "0.0.8-experimental"
 
 val server           = "org.http4s"      %%  "http4s-blaze-server"     	     % "0.17.5"
 val client           = "org.http4s"      %%  "http4s-blaze-client"           % "0.17.5"
@@ -31,7 +31,7 @@ lazy val root = (project in file("."))
   .settings(isSnapshot := true)
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
-  .settings(javaAgents += "io.kamon"    % "kamon-agent"   % "0.0.6-experimental"  % "compile;test")
+  .settings(javaAgents += "io.kamon"    % "kamon-agent"   % "0.0.8-experimental"  % "compile;test")
   .settings(
     libraryDependencies ++=
       compileScope(kamonCore, scalaExtension) ++
