@@ -16,6 +16,9 @@
 
 package kamon.http4s.instrumentation
 
+import java.time.Instant
+import java.time.temporal.{ChronoUnit, TemporalField}
+
 import fs2.util.Attempt
 import fs2.{Stream, Task}
 import kamon.Kamon
@@ -54,15 +57,16 @@ object HttpServerServiceWrapper {
       Kamon.withContext(Context.create(Span.ContextKey, serverSpan)) {
         service(request)
           .attempt
-          .flatMap(onFinish(serverSpan, System.nanoTime())(_).fold(Task.fail, Task.now))
+          .flatMap(onFinish(serverSpan, Kamon.clock().instant())(_).fold(Task.fail, Task.now))
       }
     }
   }
 
-  private def onFinish(requestSpan: Span, start: Long)(r: Attempt[MaybeResponse]): Attempt[MaybeResponse] = {
+  private def onFinish(requestSpan: Span, start: Instant)(r: Attempt[MaybeResponse]): Attempt[MaybeResponse] = {
     import cats.implicits._
 
-    val elapsedTime = System.nanoTime() - start
+    val endTimestamp = Kamon.clock().instant()
+    val elapsedTime = start.until(endTimestamp, ChronoUnit.NANOS)
 
     r.map { response =>
       val code = response.cata(_.status, Status.NotFound).code
@@ -70,7 +74,6 @@ object HttpServerServiceWrapper {
       def capture(body: EntityBody) = body.onFinalize[Task] {
         Task.delay {
           ActiveRequests.decrement()
-          println("elapsed =>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>. " + elapsedTime)
           if (code < 200) Responses1xx.record(elapsedTime)
           else if (code < 300) Responses2xx.record(elapsedTime)
           else if (code < 400) Responses3xx.record(elapsedTime)
@@ -81,7 +84,10 @@ object HttpServerServiceWrapper {
             requestSpan.addError("error")
             Responses5xx.record(elapsedTime)
           }
-          requestSpan.finish(Kamon.clock().toInstant(elapsedTime))
+
+          println(elapsedTime)
+          println(endTimestamp)
+          requestSpan.finish(endTimestamp)
         }
       }.onError { cause =>
         AbnormalTermination.record(elapsedTime)
