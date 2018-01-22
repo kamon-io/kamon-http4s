@@ -17,7 +17,7 @@
 package kamon.http4s.instrumentation
 
 import java.time.Instant
-import java.time.temporal.{ChronoUnit, TemporalField}
+import java.time.temporal.ChronoUnit
 
 import fs2.util.Attempt
 import fs2.{Stream, Task}
@@ -48,10 +48,10 @@ object HttpServerServiceWrapper {
       val incomingContext = decodeContext(request)
       val serverSpan = Kamon.buildSpan(Http4s.generateOperationName(request))
         .asChildOf(incomingContext.get(Span.ContextKey))
-        .withTag("span.kind", "server")
+        .withMetricTag("span.kind", "server")
         .withTag("http.method", request.method.name)
         .withTag("http.url", request.uri.renderString)
-        .withTag("component", "http4s-server")
+        .withTag("component", "http4s.server")
         .start()
 
       Kamon.withContext(Context.create(Span.ContextKey, serverSpan)) {

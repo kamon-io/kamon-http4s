@@ -48,10 +48,10 @@ object HttpServiceWrapper {
       } else {
         val clientSpanBuilder = Kamon.buildSpan(s"${request.uri.authority}")
           .asChildOf(clientSpan)
-          .withTag("span.kind", "client")
+          .withMetricTag("span.kind", "client")
           .withTag("http.method", request.method.name)
           .withTag("http.url", request.uri.renderString)
-          .withTag("component", "http4s-client")
+          .withTag("component", "http4s.client")
 
         val clientRequestSpan = currentContext.get(SpanCustomizer.ContextKey)
           .customize(clientSpanBuilder)
