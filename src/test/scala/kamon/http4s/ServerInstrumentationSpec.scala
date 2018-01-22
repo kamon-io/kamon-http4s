@@ -1,15 +1,35 @@
+/*
+ * =========================================================================================
+ * Copyright © 2013-2018 the kamon project <http://kamon.io/>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+ * except in compliance with the License. You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ * =========================================================================================
+ */
+
 package kamon.http4s
 
 import java.net.URL
 import java.util.concurrent.Executors
 
-import fs2.Task
-import kamon.testkit.{MetricInspection, Reconfigure}
+import kamon.Kamon
+import kamon.context.Context.create
+import kamon.testkit.MetricInspection
+import kamon.trace.Span
+import kamon.trace.Span.TagValue
 import org.http4s.HttpService
 import org.http4s.dsl.{Root, _}
 import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeBuilder
 import org.scalatest.concurrent.Eventually
+import org.scalatest.time.SpanSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
 
 import scala.concurrent.ExecutionContext
@@ -18,30 +38,24 @@ import scala.io.Source
 
 class ServerInstrumentationSpec extends WordSpec
   with Matchers
-  with MetricInspection
   with Eventually
-  with Reconfigure
+  with SpanSugar
+  with MetricInspection
   with OptionValues
+  with SpanReporter
   with BeforeAndAfterAll {
 
   val server: Server =
     BlazeBuilder
       .bindAny()
-      .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4)))
+      .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2)))
       .mountService(HttpService {
-        case GET -> Root / "thread" / "routing" =>
-          val thread = Thread.currentThread.getName
-          Ok(thread)
-
-        case GET -> Root / "thread" / "effect" =>
-          Task.delay(Thread.currentThread.getName).flatMap(Ok(_))
-
-        case req @ POST -> Root / "echo" =>
-          Ok(req.body)
+        case GET -> Root / "tracing" / "ok" =>  Ok("ok")
+        case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
+        case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
       })
       .start
       .unsafeRun()
-
 
   private def get(path: String): String =
     Source
@@ -50,20 +64,66 @@ class ServerInstrumentationSpec extends WordSpec
       .mkString
 
 
-  override def afterAll = server.shutdownNow()
+  "The Server  instrumentation" should {
+    "propagate the current context and respond to the ok action" in {
+      val okSpan = Kamon.buildSpan("ok-operation-span").start()
 
-  "A server" should {
-    "route requests on the service executor" in {
-      get("/thread/routing") should startWith("pool-")
+      Kamon.withContext(create(Span.ContextKey, okSpan)) {
+        get("/tracing/ok") should startWith("ok")
+      }
+
+      eventually(timeout(2 seconds)) {
+        val span = reporter.nextSpan().value
+        span.operationName shouldBe "tracing.ok.get"
+        span.tags("span.kind") shouldBe TagValue.String("server")
+        span.tags("http.method") shouldBe TagValue.String("GET")
+        span.tags("http.status_code") shouldBe TagValue.Number(200)
+      }
     }
 
-    "execute the service task on the service executor" in {
-      get("/thread/effect") should startWith("pool-")
+    "propagate the current context and respond to the not-found action" in {
+      val notFoundSpan = Kamon.buildSpan("not-found-operation-span").start()
+
+      Kamon.withContext(create(Span.ContextKey, notFoundSpan)) {
+        intercept[Exception] {
+          get("/tracing/not-found") should startWith("not-found")
+        }
+      }
+
+      eventually(timeout(2 seconds)) {
+        val span = reporter.nextSpan().value
+        span.operationName shouldBe "not-found"
+        span.tags("span.kind") shouldBe TagValue.String("server")
+        span.tags("http.method") shouldBe TagValue.String("GET")
+        span.tags("http.status_code") shouldBe TagValue.Number(404)
+      }
     }
 
-//    "be able to echo its input" in {
-//      val input = """{ "Hello": "world" }"""
-//      post("/echo", input) must startWith(input)
-//    }
+    "propagate the current context and respond to the error action" in {
+      val errorSpan = Kamon.buildSpan("error-operation-span").start()
+
+      Kamon.withContext(create(Span.ContextKey, errorSpan)) {
+        intercept[Exception] {
+          get("/tracing/error") should startWith("error")
+        }
+      }
+
+      eventually(timeout(2 seconds)) {
+        val span = reporter.nextSpan().value
+        span.operationName shouldBe "tracing.error.get"
+        span.tags("span.kind") shouldBe TagValue.String("server")
+        span.tags("http.method") shouldBe TagValue.String("GET")
+        span.tags("error") shouldBe TagValue.True
+        span.tags("http.status_code") shouldBe TagValue.Number(500)
+      }
+    }
+  }
+
+  override protected def beforeAll(): Unit =
+    start()
+
+  override def afterAll: Unit = {
+    stop()
+    server.shutdownNow()
   }
 }

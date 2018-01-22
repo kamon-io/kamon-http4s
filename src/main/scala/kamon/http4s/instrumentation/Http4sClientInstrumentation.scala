@@ -61,6 +61,7 @@ object HttpServiceWrapper {
         val encodedRequest = encodeContext(newContext, request)
 
         httpService(encodedRequest).map { response =>
+          clientRequestSpan.tag("http.status_code", response.response.status.code)
           if (isError(response.response.status.code))
             clientRequestSpan.addError("error")
           if (response.response.status.code == StatusCodes.NotFound)

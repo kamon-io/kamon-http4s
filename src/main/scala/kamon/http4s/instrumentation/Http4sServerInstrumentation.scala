@@ -62,7 +62,7 @@ object HttpServerServiceWrapper {
     }
   }
 
-  private def onFinish(requestSpan: Span, start: Instant)(r: Attempt[MaybeResponse]): Attempt[MaybeResponse] = {
+  private def onFinish(serverSpan: Span, start: Instant)(r: Attempt[MaybeResponse]): Attempt[MaybeResponse] = {
     import cats.implicits._
 
     val endTimestamp = Kamon.clock().instant()
@@ -71,6 +71,8 @@ object HttpServerServiceWrapper {
     r.map { response =>
       val code = response.cata(_.status, Status.NotFound).code
 
+      serverSpan.tag("http.status_code", code)
+
       def capture(body: EntityBody) = body.onFinalize[Task] {
         Task.delay {
           ActiveRequests.decrement()
@@ -78,27 +80,33 @@ object HttpServerServiceWrapper {
           else if (code < 300) Responses2xx.record(elapsedTime)
           else if (code < 400) Responses3xx.record(elapsedTime)
           else if (code < 500) {
-            if (code == StatusCodes.NotFound) requestSpan.setOperationName("not-found")
+            if (code == StatusCodes.NotFound) serverSpan.setOperationName("not-found")
             Responses4xx.record(elapsedTime)
           } else {
-            requestSpan.addError("error")
+            serverSpan.addError("error")
             Responses5xx.record(elapsedTime)
           }
 
-          println(elapsedTime)
-          println(endTimestamp)
-          requestSpan.finish(endTimestamp)
+          serverSpan.finish(endTimestamp)
         }
       }.onError { cause =>
         AbnormalTermination.record(elapsedTime)
-        requestSpan.addError("abnormal-termination", cause).finish()
+        serverSpan.addError("abnormal-termination", cause).finish()
         Stream.fail(cause)
       }
       response.cata(resp => resp.copy(body = capture(resp.body)), response)
     }.leftMap { error =>
-      requestSpan.addError(error.getMessage, error).finish()
+      serverSpan.addError(error.getMessage, error).finish()
       Responses5xx.record(elapsedTime)
       error
     }
   }
 }
+
+
+object Main2 extends App {
+  Kamon.loadReportersFromConfig() // this may even be an empty list of reporters
+  Kamon.stopAllReporters()
+  // the JVM should terminate after this
+}
+
