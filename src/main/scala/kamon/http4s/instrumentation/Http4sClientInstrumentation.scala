@@ -20,6 +20,7 @@ import cats.data.Kleisli
 import fs2.Task
 import kamon.Kamon
 import kamon.agent.scala.KamonInstrumentation
+import kamon.http4s.Http4s
 import kamon.http4s.instrumentation.advisor.Http4sClientAdvisor
 import kamon.trace.{Span, SpanCustomizer}
 import org.http4s._
@@ -46,12 +47,12 @@ object HttpServiceWrapper {
       if (clientSpan.isEmpty()) {
         httpService(request)
       } else {
-        val clientSpanBuilder = Kamon.buildSpan(s"${request.uri.authority}")
+        val clientSpanBuilder = Kamon.buildSpan(Http4s.generateHttpClientOperationName(request))
           .asChildOf(clientSpan)
-          .withTag("span.kind", "client")
+          .withMetricTag("span.kind", "client")
           .withTag("http.method", request.method.name)
           .withTag("http.url", request.uri.renderString)
-          .withTag("component", "http4s-client")
+          .withTag("component", "http4s.client")
 
         val clientRequestSpan = currentContext.get(SpanCustomizer.ContextKey)
           .customize(clientSpanBuilder)
@@ -61,6 +62,7 @@ object HttpServiceWrapper {
         val encodedRequest = encodeContext(newContext, request)
 
         httpService(encodedRequest).map { response =>
+          clientRequestSpan.tag("http.status_code", response.response.status.code)
           if (isError(response.response.status.code))
             clientRequestSpan.addError("error")
           if (response.response.status.code == StatusCodes.NotFound)

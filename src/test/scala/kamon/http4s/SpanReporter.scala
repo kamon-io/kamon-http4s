@@ -1,6 +1,6 @@
 /*
  * =========================================================================================
- * Copyright © 2013-2017 the kamon project <http://kamon.io/>
+ * Copyright © 2013-2018 the kamon project <http://kamon.io/>
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of the License at
@@ -14,26 +14,24 @@
  * =========================================================================================
  */
 
-package kamon.testkit
+package kamon.http4s
 
-import java.util.concurrent.LinkedBlockingQueue
+import kamon.Kamon
+import kamon.testkit.{Reconfigure, TestSpanReporter}
+import kamon.util.Registration
 
-import com.typesafe.config.Config
-import kamon.SpanReporter
-import kamon.trace.Span
-import kamon.trace.Span.FinishedSpan
+trait SpanReporter extends Reconfigure {
 
-class TestSpanReporter extends SpanReporter {
-  import scala.collection.JavaConverters._
-  private val reportedSpans = new LinkedBlockingQueue[FinishedSpan]()
+  @volatile var registration: Registration = _
+  val reporter = new TestSpanReporter()
 
-  override def reportSpans(spans: Seq[Span.FinishedSpan]): Unit =
-    reportedSpans.addAll(spans.asJava)
+  def start(): Unit = {
+    enableFastSpanFlushing()
+    sampleAlways()
+    registration = Kamon.addReporter(reporter)
+  }
 
-  def nextSpan(): Option[FinishedSpan] =
-    Option(reportedSpans.poll())
-
-  override def start(): Unit = {}
-  override def stop(): Unit = {}
-  override def reconfigure(config: Config): Unit = {}
+   def stop(): Unit = {
+    registration.cancel()
+  }
 }

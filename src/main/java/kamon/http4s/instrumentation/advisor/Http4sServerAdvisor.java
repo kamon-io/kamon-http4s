@@ -1,6 +1,6 @@
 /*
  * =========================================================================================
- * Copyright © 2013-2017 the kamon project <http://kamon.io/>
+ * Copyright © 2013-2018 the kamon project <http://kamon.io/>
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of the License at
@@ -14,26 +14,18 @@
  * =========================================================================================
  */
 
-package kamon.testkit
+package kamon.http4s.instrumentation.advisor;
 
-import com.typesafe.config.ConfigFactory
-import kamon.Kamon
+import kamon.agent.libs.net.bytebuddy.asm.Advice;
+import kamon.agent.libs.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
+import kamon.http4s.instrumentation.HttpServerServiceWrapper;
 
-trait Reconfigure {
-
-  def enableFastSpanFlushing(): Unit = {
-    applyConfig("kamon.trace.tick-interval = 1 millisecond")
-  }
-
-  def sampleAlways(): Unit = {
-    applyConfig("kamon.trace.sampler = always")
-  }
-
-  def sampleNever(): Unit = {
-    applyConfig("kamon.trace.sampler = never")
-  }
-
-  private def applyConfig(configString: String): Unit = {
-    Kamon.reconfigure(ConfigFactory.parseString(configString).withFallback(Kamon.config()))
-  }
+/**
+ * Advisor for org.http4s.server.Router$::apply
+ */
+public class Http4sServerAdvisor {
+    @Advice.OnMethodExit
+    public static void exit(@Advice.Return(readOnly = false, typing = Typing.DYNAMIC) Object httpService) {
+        httpService = HttpServerServiceWrapper.wrap(httpService);
+    }
 }
