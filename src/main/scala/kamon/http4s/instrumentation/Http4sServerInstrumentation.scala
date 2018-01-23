@@ -103,10 +103,3 @@ object HttpServerServiceWrapper {
   }
 }
 
-
-object Main2 extends App {
-  Kamon.loadReportersFromConfig() // this may even be an empty list of reporters
-  Kamon.stopAllReporters()
-  // the JVM should terminate after this
-}
-
