@@ -17,11 +17,11 @@ Kamon Http4s is currently available for Scala 2.11 and 2.12.
 
 Supported releases and dependencies are shown below.
 
-| kamon  | status | jdk  | scala            
-|:------:|:------:|:----:|------------------
-|  1.0.0 | experimental | 1.8+ | 2.11, 2.12
+| kamon  | status | jdk  | scala | http4s            
+|:------:|:------:|:----:|--------------:|-------
+|  1.0.0 | experimental | 1.8+ | 2.12 | 0.17.x
 
-To get started with SBT, simply add the following to your `build.sbt` or `pom.xml`
+To get started with SBT or MAVEN, simply add the following to your `build.sbt` or `pom.xml`
 file:
 
 ```scala
@@ -36,15 +36,25 @@ libraryDependencies += "io.kamon" %% "kamon-http4s" % "1.0.0"
 </dependency>
 ```
 
+Next, just run your app with the kamon-agent as parameter:
+
+```
+-javaagent:[kamon-agent-0.0.8-experimental.jar] 
+```
+
 ### Documentation
 
 ### Server Metrics ###
 
 The metrics that you will get are:
 
-* __TODO__: 
+* __active-requests__: The the number active requests.
+* __http-responses__: Response time by status code.
+* __abnormal-termination__: The number of abnormal requests termination.
 
 ### Traces ###
 
 
+
+[kamon-agent-0.0.8-experimental.jar]:https://mvnrepository.com/artifact/io.kamon/kamon-agent/0.0.8-experimental
 
