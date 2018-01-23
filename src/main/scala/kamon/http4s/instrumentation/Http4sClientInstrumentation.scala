@@ -20,6 +20,7 @@ import cats.data.Kleisli
 import fs2.Task
 import kamon.Kamon
 import kamon.agent.scala.KamonInstrumentation
+import kamon.http4s.Http4s
 import kamon.http4s.instrumentation.advisor.Http4sClientAdvisor
 import kamon.trace.{Span, SpanCustomizer}
 import org.http4s._
@@ -46,7 +47,7 @@ object HttpServiceWrapper {
       if (clientSpan.isEmpty()) {
         httpService(request)
       } else {
-        val clientSpanBuilder = Kamon.buildSpan(s"${request.uri.authority}")
+        val clientSpanBuilder = Kamon.buildSpan(Http4s.generateHttpClientOperationName(request))
           .asChildOf(clientSpan)
           .withMetricTag("span.kind", "client")
           .withTag("http.method", request.method.name)

@@ -1,0 +1,132 @@
+/*
+ * =========================================================================================
+ * Copyright © 2013-2018 the kamon project <http://kamon.io/>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+ * except in compliance with the License. You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ * =========================================================================================
+ */
+
+package kamon.http4s
+
+import kamon.Kamon
+import kamon.context.Context
+import kamon.context.Context.create
+import kamon.testkit.MetricInspection
+import kamon.trace.{Span, SpanCustomizer}
+import kamon.trace.Span.TagValue
+import org.http4s.HttpService
+import org.http4s.client.Client
+import org.http4s.dsl._
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.SpanSugar
+import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
+
+
+class ClientInstrumentationSpec extends WordSpec
+  with Matchers
+  with Eventually
+  with SpanSugar
+  with MetricInspection
+  with OptionValues
+  with SpanReporter
+  with BeforeAndAfterAll {
+
+  val service = HttpService {
+      case GET -> Root / "tracing" / "ok" =>  Ok("ok")
+      case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
+      case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
+      case GET -> Root / "tracing" / "throw-exception"  =>
+        new RuntimeException
+      Ok()
+  }
+
+  val client: Client = Client.fromHttpService(service)
+
+  "The Client instrumentation" should {
+    "propagate the current context and generate a span inside an action and complete the ws request" in {
+      val okSpan = Kamon.buildSpan("ok-operation-span").start()
+
+      Kamon.withContext(create(Span.ContextKey, okSpan)) {
+        client.expect[String]("/tracing/ok").unsafeRun shouldBe "ok"
+      }
+
+      eventually(timeout(2 seconds)) {
+        val span = reporter.nextSpan().value
+        span.operationName shouldBe "None/tracing/ok"
+        span.tags("span.kind") shouldBe TagValue.String("client")
+        span.tags("http.method") shouldBe TagValue.String("GET")
+        span.tags("http.status_code") shouldBe TagValue.Number(200)
+      }
+    }
+
+    "propagate the current context and generate a span called not-found and complete the ws request" in {
+      val notFoundSpan = Kamon.buildSpan("not-found-operation-span").start()
+
+      Kamon.withContext(create(Span.ContextKey, notFoundSpan)) {
+        client.expect[String]("/tracing/not-found").unsafeAttemptRun().isLeft shouldBe true
+      }
+
+      eventually(timeout(2 seconds)) {
+        val span = reporter.nextSpan().value
+        span.operationName shouldBe "not-found"
+        span.tags("span.kind") shouldBe TagValue.String("client")
+        span.tags("http.method") shouldBe TagValue.String("GET")
+        span.tags("http.status_code") shouldBe TagValue.Number(404)
+      }
+    }
+
+    "propagate the current context and generate a span with error and complete the ws request" in {
+      val errorSpan = Kamon.buildSpan("error-operation-span").start()
+
+      Kamon.withContext(create(Span.ContextKey, errorSpan)) {
+        client.expect[String]("/tracing/error").unsafeAttemptRun().isLeft shouldBe true
+      }
+
+      eventually(timeout(2 seconds)) {
+        val span = reporter.nextSpan().value
+        span.operationName shouldBe "None/tracing/error"
+        span.tags("span.kind") shouldBe TagValue.String("client")
+        span.tags("http.method") shouldBe TagValue.String("GET")
+        span.tags("error") shouldBe TagValue.True
+        span.tags("http.status_code") shouldBe TagValue.Number(500)
+      }
+    }
+
+    "propagate the current context and pickup a SpanCustomizer and apply it to the new spans and complete the ws request" in {
+      val okSpan = Kamon.buildSpan("ok-operation-span").start()
+
+      val customizedOperationName = "customized-operation-name"
+
+      val context = Context.create(Span.ContextKey, okSpan)
+        .withKey(SpanCustomizer.ContextKey, SpanCustomizer.forOperationName(customizedOperationName))
+
+      Kamon.withContext(context) {
+        client.expect[String]("/tracing/ok").unsafeRun shouldBe "ok"
+      }
+
+      eventually(timeout(2 seconds)) {
+        val span = reporter.nextSpan().value
+        span.operationName shouldBe customizedOperationName
+        span.tags("span.kind") shouldBe TagValue.String("client")
+        span.tags("http.method") shouldBe TagValue.String("GET")
+        span.tags("http.status_code") shouldBe TagValue.Number(200)
+      }
+    }
+  }
+
+  override protected def beforeAll(): Unit =
+    start()
+
+  override def afterAll: Unit = {
+    stop()
+    client.shutdownNow()
+  }
+}
