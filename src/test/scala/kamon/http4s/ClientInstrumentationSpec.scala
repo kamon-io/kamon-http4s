@@ -19,9 +19,8 @@ package kamon.http4s
 import kamon.Kamon
 import kamon.context.Context
 import kamon.context.Context.create
-import kamon.testkit.MetricInspection
-import kamon.trace.{Span, SpanCustomizer}
 import kamon.trace.Span.TagValue
+import kamon.trace.{Span, SpanCustomizer}
 import org.http4s.HttpService
 import org.http4s.client.Client
 import org.http4s.dsl._
@@ -34,7 +33,6 @@ class ClientInstrumentationSpec extends WordSpec
   with Matchers
   with Eventually
   with SpanSugar
-  with MetricInspection
   with OptionValues
   with SpanReporter
   with BeforeAndAfterAll {

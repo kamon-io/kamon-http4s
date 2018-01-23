@@ -21,7 +21,6 @@ import java.util.concurrent.Executors
 
 import kamon.Kamon
 import kamon.context.Context.create
-import kamon.testkit.MetricInspection
 import kamon.trace.Span
 import kamon.trace.Span.TagValue
 import org.http4s.HttpService
@@ -40,7 +39,6 @@ class ServerInstrumentationSpec extends WordSpec
   with Matchers
   with Eventually
   with SpanSugar
-  with MetricInspection
   with OptionValues
   with SpanReporter
   with BeforeAndAfterAll {

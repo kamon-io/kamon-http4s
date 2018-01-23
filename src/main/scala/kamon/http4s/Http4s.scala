@@ -17,7 +17,7 @@
 package kamon.http4s
 
 import com.typesafe.config.Config
-import kamon.Kamon
+import kamon.{Kamon, OnReconfigureHook}
 import kamon.util.DynamicAccess
 import org.http4s.Request
 

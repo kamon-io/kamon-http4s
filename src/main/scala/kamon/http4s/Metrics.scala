@@ -36,11 +36,11 @@ object Metrics {
   object ResponseMetrics {
     private val responseMetric = Kamon.histogram("http-responses", time.nanoseconds)
 
-    val  Responses1xx =  responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "1xx"))
-    val  Responses2xx =  responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "2xx"))
-    val  Responses3xx =  responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "3xx"))
-    val  Responses4xx =  responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "4xx"))
-    val  Responses5xx =  responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "5xx"))
+    val Responses1xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "1xx"))
+    val Responses2xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "2xx"))
+    val Responses3xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "3xx"))
+    val Responses4xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "4xx"))
+    val Responses5xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "5xx"))
   }
 }
 
