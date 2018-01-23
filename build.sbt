@@ -28,7 +28,6 @@ lazy val root = (project in file("."))
       scalaVersion := "2.12.4",
       crossScalaVersions := Seq("2.11.8", "2.12.4")))
   .enablePlugins(JavaAgent)
-  .settings(isSnapshot := true)
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
   .settings(javaAgents += "io.kamon"    % "kamon-agent"   % "0.0.8-experimental"  % "compile;test")
