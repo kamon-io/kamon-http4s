@@ -66,7 +66,6 @@ class HttpMetricsSpec extends WordSpec
 
   "The HttpMetrics" should {
     "track the total of active requests" in {
-
       for(_ <- 1 to 10) yield  {
         Future { get("/tracing/ok") }(parallelRequestExecutor)
       }
@@ -90,24 +89,20 @@ class HttpMetricsSpec extends WordSpec
     }
 
     "track the response time with status code 4xx" in {
-
       for(_ <- 1 to 100) yield {
         intercept[Exception] {
           get("/tracing/not-found")
         }
       }
-
       Responses4xx.distribution().max should be >= 0L
     }
 
     "track the response time with status code 5xx" in {
-
       for(_ <- 1 to 100) yield {
         intercept[Exception] {
           get("/tracing/error")
         }
       }
-
       Responses5xx.distribution().max should be >= 0L
     }
   }
