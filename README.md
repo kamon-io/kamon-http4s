@@ -7,13 +7,11 @@
 ### Getting Started
 
 The `kamon-http4s` module ships with bytecode instrumentation that brings automatic traces and metrics to your 
-Http4s based applications.
+[http4s][4] based applications
 
+The <b>kamon-http4s</b> module requires you to start your application using the [Kamon Agent][2].
 
-The <b>kamon-http4s</b> module requires you to start your application using the [Kamon Agent][2]. Kamon will warn you
-at startup if you failed to do so.
-
-Kamon Http4s is currently available for Scala 2.11 and 2.12.
+Kamon <b>kamon-http4s</b> is currently available for Scala 2.11 and 2.12.
 
 Supported releases and dependencies are shown below.
 
@@ -84,7 +82,7 @@ The last step in the process: start reporting your data! You can register as man
 Kamon.addReporter(new PrometheusReporter())
 Kamon.addReporter(new ZipkinReporter())
 Kamon.addReporter(new Jaeger())
-``
+```
 
 Now you can simply `sbt run` the application and after a few seconds you will get the Prometheus metrics
 exposed on <http://localhost:9095/> and message traces sent to Zipkin! The default configuration publishes the Prometheus
@@ -98,7 +96,6 @@ All you need to do is [configure a scrape configuration in Prometheus][3]. The f
 example that shold work with the minimal server from the previous section.
 
 ```yaml
-
 A minimal Prometheus configuration snippet
 ------------------------------------------------------------------------------
 scrape_configs:
@@ -135,10 +132,11 @@ Clicking on a span will bring up a details view where you can see all tags for t
 
 ### Enjoy!
 
-That's it, you are now collecting metrics and tracing information from a http4s application.
+That's it, you are now collecting metrics and tracing information from a [http4s][4] application.
 
 
 [kamon-agent-0.0.8-experimental.jar]:https://mvnrepository.com/artifact/io.kamon/kamon-agent/0.0.8-experimental
 [1]: https://github.com/sbt/sbt-javaagent
 [2]: https://github.com/kamon-io/kamon-agent
 [3]: http://prometheus.io/docs/operating/configuration/#scrape-configurations-scrape_config
+[4]: http://http4s.org
