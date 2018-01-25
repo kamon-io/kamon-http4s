@@ -15,11 +15,11 @@ Kamon <b>kamon-http4s</b> is currently available for Scala 2.11 and 2.12.
 
 Supported releases and dependencies are shown below.
 
-| kamon  | status | jdk  | scala | http4s            
+| kamon-http4s  | status | jdk  | scala | http4s            
 |:------:|:------:|:----:|--------------:|-------
 |  1.0.0 | experimental | 1.8+ | 2.12 | 0.17.x
 
-| kamon  | status | jdk  | scala | http4s            
+| kamon-http4s  | status | jdk  | scala | http4s            
 |:------:|:------:|:----:|--------------:|-------
 |  1.0.0 | soon | 1.8+ | 2.12 | 0.18.x
 
