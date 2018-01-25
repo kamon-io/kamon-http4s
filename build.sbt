@@ -30,7 +30,7 @@ lazy val root = (project in file("."))
   .enablePlugins(JavaAgent)
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
-  .settings(javaAgents += "io.kamon"    % "kamon-agent"   % "0.0.10-experimental"  % "compile;test")
+  .settings(javaAgents += "io.kamon"    % "kamon-agent"   % "0.0.8-experimental"  % "compile;test")
   .settings(
     libraryDependencies ++=
       compileScope(kamonCore, scalaExtension) ++
