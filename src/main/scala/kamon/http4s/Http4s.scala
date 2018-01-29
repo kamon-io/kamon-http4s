@@ -17,12 +17,12 @@
 package kamon.http4s
 
 import com.typesafe.config.Config
-import kamon.{Kamon, OnReconfigureHook}
+import kamon.Kamon
 import kamon.util.DynamicAccess
 import org.http4s.Request
 
 object Http4s {
-  private var nameGenerator: NameGenerator = new DefaultNameGenerator()
+  @volatile private var nameGenerator: NameGenerator = new DefaultNameGenerator()
 
   loadConfiguration(Kamon.config())
 
@@ -34,7 +34,7 @@ object Http4s {
 
   Kamon.onReconfigure((newConfig: Config) => Http4s.loadConfiguration(newConfig))
 
-  private def loadConfiguration(config: Config): Unit = synchronized {
+  private def loadConfiguration(config: Config): Unit = {
     val dynamic = new DynamicAccess(getClass.getClassLoader)
     val nameGeneratorFQCN = config.getString("kamon.http4s.name-generator")
     nameGenerator = dynamic.createInstanceFor[NameGenerator](nameGeneratorFQCN, Nil).get

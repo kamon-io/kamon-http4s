@@ -40,9 +40,7 @@ class Http4sServerInstrumentation extends KamonInstrumentation {
 }
 
 object HttpServerServiceWrapper {
-
-  def wrap(obj: Any):HttpService = {
-    val service = obj.asInstanceOf[HttpService]
+  def wrap(service: HttpService):HttpService = {
     Service.lift { request  =>
       ActiveRequests.increment()
       val incomingContext = decodeContext(request)

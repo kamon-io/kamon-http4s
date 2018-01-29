@@ -37,16 +37,13 @@ class Http4sClientInstrumentation extends KamonInstrumentation {
 }
 
 object HttpServiceWrapper {
-  def wrap(obj: AnyRef): Kleisli[Task, Request, DisposableResponse] = {
-    val httpService = obj.asInstanceOf[Kleisli[Task, Request, DisposableResponse]]
-
+  def wrap(httpService: Kleisli[Task, Request, DisposableResponse]): Kleisli[Task, Request, DisposableResponse] = {
     Service.lift { request =>
       val currentContext = Kamon.currentContext()
       val clientSpan = currentContext.get(Span.ContextKey)
 
-      if (clientSpan.isEmpty()) {
-        httpService(request)
-      } else {
+      if (clientSpan.isEmpty()) httpService(request)
+      else {
         val clientSpanBuilder = Kamon.buildSpan(Http4s.generateHttpClientOperationName(request))
           .asChildOf(clientSpan)
           .withMetricTag("span.kind", "client")

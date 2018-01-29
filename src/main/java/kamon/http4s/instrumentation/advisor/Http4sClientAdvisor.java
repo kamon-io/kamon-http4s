@@ -16,16 +16,19 @@
 
 package kamon.http4s.instrumentation.advisor;
 
+import cats.data.Kleisli;
+import fs2.Task;
 import kamon.agent.libs.net.bytebuddy.asm.Advice;
-import kamon.agent.libs.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import kamon.http4s.instrumentation.HttpServiceWrapper;
+import org.http4s.Request;
+import org.http4s.client.DisposableResponse;
 
 /**
  * Advisor for org.http4s.client.Client::<init>
  */
 public class Http4sClientAdvisor {
     @Advice.OnMethodEnter
-    public static void enter(@Advice.Argument(value = 0, readOnly = false, typing = Typing.DYNAMIC) Object httpService) {
+    public static void enter(@Advice.Argument(value = 0, readOnly = false) Kleisli<Task, Request, DisposableResponse> httpService) {
         httpService = HttpServiceWrapper.wrap(httpService);
     }
 }
