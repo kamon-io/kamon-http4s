@@ -42,8 +42,7 @@ object TheService {
     HttpService {
       case GET -> Root / "ok" => Ok("ok")
       case GET -> Root / "call-google" => 
-        val response = httpClient.expect[String]("https://www.google.com").unsafeRun
-        Ok(response)
+        Ok(httpClient.expect[String]("https://www.google.com.ar"))
   }
 }
 ```
