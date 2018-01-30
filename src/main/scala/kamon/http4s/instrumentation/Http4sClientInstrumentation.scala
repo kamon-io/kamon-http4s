@@ -17,7 +17,8 @@
 package kamon.http4s.instrumentation
 
 import cats.data.Kleisli
-import fs2.Task
+import cats.effect.Effect
+import cats.implicits._
 import kamon.Kamon
 import kamon.agent.scala.KamonInstrumentation
 import kamon.http4s.Http4s
@@ -26,6 +27,7 @@ import kamon.trace.{Span, SpanCustomizer}
 import org.http4s._
 import org.http4s.client.DisposableResponse
 
+import scala.concurrent.ExecutionContext
 
 class Http4sClientInstrumentation extends KamonInstrumentation {
 
@@ -36,9 +38,9 @@ class Http4sClientInstrumentation extends KamonInstrumentation {
   }
 }
 
-object HttpServiceWrapper {
-  def wrap(httpService: Kleisli[Task, Request, DisposableResponse]): Kleisli[Task, Request, DisposableResponse] = {
-    Service.lift { request =>
+object HttpClientWrapper {
+  def apply[F[_]:Effect](httpService: Kleisli[F, Request[F], DisposableResponse[F]]): Kleisli[F, Request[F], DisposableResponse[F]] = {
+    Kleisli { request =>
       val currentContext = Kamon.currentContext()
       val clientSpan = currentContext.get(Span.ContextKey)
 

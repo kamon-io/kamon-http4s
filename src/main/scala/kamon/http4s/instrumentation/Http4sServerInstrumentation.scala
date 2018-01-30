@@ -16,17 +16,12 @@
 
 package kamon.http4s.instrumentation
 
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-
-import fs2.util.Attempt
-import fs2.{Stream, Task}
+import cats.data.Kleisli
+import cats.effect.Sync
 import kamon.Kamon
 import kamon.agent.scala.KamonInstrumentation
 import kamon.context.Context
-import kamon.http4s.Http4s
-import kamon.http4s.Metrics.ResponseMetrics._
-import kamon.http4s.Metrics.{AbnormalTermination, ActiveRequests}
+import kamon.http4s.Metrics.ActiveRequests
 import kamon.http4s.instrumentation.advisor.Http4sServerAdvisor
 import kamon.trace.Span
 import org.http4s._
@@ -40,11 +35,11 @@ class Http4sServerInstrumentation extends KamonInstrumentation {
 }
 
 object HttpServerServiceWrapper {
-  def wrap(service: HttpService):HttpService = {
-    Service.lift { request  =>
+  def wrap[F[_]:Sync](service: HttpService[F]):HttpService[F] = {
+    Kleisli { request  =>
       ActiveRequests.increment()
       val incomingContext = decodeContext(request)
-      val serverSpan = Kamon.buildSpan(Http4s.generateOperationName(request))
+      val serverSpan = Kamon.buildSpan("")
         .asChildOf(incomingContext.get(Span.ContextKey))
         .withMetricTag("span.kind", "server")
         .withTag("http.method", request.method.name)
@@ -54,50 +49,50 @@ object HttpServerServiceWrapper {
 
       Kamon.withContext(Context.create(Span.ContextKey, serverSpan)) {
         service(request)
-          .attempt
-          .flatMap(onFinish(serverSpan, Kamon.clock().instant())(_).fold(Task.fail, Task.now))
+//          .attempt
+//          .flatMap(onFinish(serverSpan, Kamon.clock().instant())(_).fold(Task.fail, Task.now))
       }
     }
   }
 
-  private def onFinish(serverSpan: Span, start: Instant)(r: Attempt[MaybeResponse]): Attempt[MaybeResponse] = {
-    import cats.implicits._
 
-    val endTimestamp = Kamon.clock().instant()
-    val elapsedTime = start.until(endTimestamp, ChronoUnit.NANOS)
-
-    r.map { response =>
-      val code = response.cata(_.status, Status.NotFound).code
-
-      serverSpan.tag("http.status_code", code)
-
-      def capture(body: EntityBody) = body.onFinalize[Task] {
-        Task.delay {
-          ActiveRequests.decrement()
-          if (code < 200) Responses1xx.record(elapsedTime)
-          else if (code < 300) Responses2xx.record(elapsedTime)
-          else if (code < 400) Responses3xx.record(elapsedTime)
-          else if (code < 500) {
-            if (code == StatusCodes.NotFound) serverSpan.setOperationName("not-found")
-            Responses4xx.record(elapsedTime)
-          } else {
-            serverSpan.addError("error")
-            Responses5xx.record(elapsedTime)
-          }
-
-          serverSpan.finish(endTimestamp)
-        }
-      }.onError { cause =>
-        AbnormalTermination.record(elapsedTime)
-        serverSpan.addError("abnormal-termination", cause).finish()
-        Stream.fail(cause)
-      }
-      response.cata(resp => resp.copy(body = capture(resp.body)), response)
-    }.leftMap { error =>
-      serverSpan.addError(error.getMessage, error).finish()
-      Responses5xx.record(elapsedTime)
-      error
-    }
-  }
+//  private def onFinish(serverSpan: Span, start: Instant)(r: Attempt[MaybeResponse]): Attempt[MaybeResponse] = {
+//
+//    val endTimestamp = Kamon.clock().instant()
+//    val elapsedTime = start.until(endTimestamp, ChronoUnit.NANOS)
+//
+//    r.map { response =>
+//      val code = response.cata(_.status, Status.NotFound).code
+//
+//      serverSpan.tag("http.status_code", code)
+//
+//      def capture(body: EntityBody) = body.onFinalize[Task] {
+//        Task.delay {
+//          ActiveRequests.decrement()
+//          if (code < 200) Responses1xx.record(elapsedTime)
+//          else if (code < 300) Responses2xx.record(elapsedTime)
+//          else if (code < 400) Responses3xx.record(elapsedTime)
+//          else if (code < 500) {
+//            if (code == StatusCodes.NotFound) serverSpan.setOperationName("not-found")
+//            Responses4xx.record(elapsedTime)
+//          } else {
+//            serverSpan.addError("error")
+//            Responses5xx.record(elapsedTime)
+//          }
+//
+//          serverSpan.finish(endTimestamp)
+//        }
+//      }.onError { cause =>
+//        AbnormalTermination.record(elapsedTime)
+//        serverSpan.addError("abnormal-termination", cause).finish()
+//        Stream.fail(cause)
+//      }
+//      response.cata(resp => resp.copy(body = capture(resp.body)), response)
+//    }.leftMap { error =>
+//      serverSpan.addError(error.getMessage, error).finish()
+//      Responses5xx.record(elapsedTime)
+//      error
+//    }
+//  }
 }
 

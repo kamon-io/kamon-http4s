@@ -19,12 +19,14 @@ package kamon.http4s
 import java.net.URL
 import java.util.concurrent.Executors
 
+import cats.effect.IO
 import kamon.Kamon
 import kamon.context.Context.create
 import kamon.trace.Span
 import kamon.trace.Span.TagValue
 import org.http4s.HttpService
-import org.http4s.dsl.{Root, _}
+import org.http4s.dsl.impl.Root
+import org.http4s.dsl.io._
 import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeBuilder
 import org.scalatest.concurrent.Eventually
@@ -43,8 +45,8 @@ class ServerInstrumentationSpec extends WordSpec
   with SpanReporter
   with BeforeAndAfterAll {
 
-  val server: Server =
-    BlazeBuilder
+  val server: Server[IO] =
+    BlazeBuilder[IO]
       .bindAny()
       .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2)))
       .mountService(HttpService {
@@ -53,7 +55,7 @@ class ServerInstrumentationSpec extends WordSpec
         case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
       })
       .start
-      .unsafeRun()
+      .unsafeRunSync()
 
   private def get(path: String): String =
     Source

@@ -17,9 +17,8 @@
 package kamon.http4s.instrumentation.advisor;
 
 import cats.data.Kleisli;
-import fs2.Task;
 import kamon.agent.libs.net.bytebuddy.asm.Advice;
-import kamon.http4s.instrumentation.HttpServiceWrapper;
+import kamon.http4s.instrumentation.HttpClientWrapper;
 import org.http4s.Request;
 import org.http4s.client.DisposableResponse;
 
@@ -28,7 +27,8 @@ import org.http4s.client.DisposableResponse;
  */
 public class Http4sClientAdvisor {
     @Advice.OnMethodEnter
-    public static void enter(@Advice.Argument(value = 0, readOnly = false) Kleisli<Task, Request, DisposableResponse> httpService) {
-        httpService = HttpServiceWrapper.wrap(httpService);
+//    public static <F> void enter(@Advice.Argument(value = 0, readOnly = false) Kleisli<F, Request<F>, DisposableResponse<F>> httpService) {
+    public static void enter(@Advice.Argument(value = 0, readOnly = false) Kleisli httpService) {
+        httpService = HttpClientWrapper(httpService);
     }
 }

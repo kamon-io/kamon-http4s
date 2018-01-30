@@ -19,11 +19,13 @@ package kamon.http4s
 import java.net.URL
 import java.util.concurrent.Executors
 
+import cats.effect.IO
 import kamon.http4s.Metrics.ActiveRequests
 import kamon.http4s.Metrics.ResponseMetrics._
 import kamon.testkit.MetricInspection
 import org.http4s.HttpService
-import org.http4s.dsl.{Root, _}
+import org.http4s.dsl.impl.Root
+import org.http4s.dsl.io._
 import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeBuilder
 import org.scalatest.concurrent.Eventually
@@ -43,17 +45,17 @@ class HttpMetricsSpec extends WordSpec
   with SpanReporter
   with BeforeAndAfterAll {
 
-  val server: Server =
-    BlazeBuilder
+  val server: Server[IO]=
+    BlazeBuilder[IO]
       .bindAny()
       .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2)))
-      .mountService(HttpService {
+      .mountService(HttpService[IO] {
         case GET -> Root / "tracing" / "ok" =>  Ok("ok")
         case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
         case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
       })
       .start
-      .unsafeRun()
+      .unsafeRunSync()
 
   private def get(path: String): String =
     Source
@@ -77,14 +79,11 @@ class HttpMetricsSpec extends WordSpec
       eventually(timeout(2 seconds)) {
         ActiveRequests.distribution().min shouldBe 0L
       }
-
       reporter.clear()
     }
 
     "track the response time with status code 2xx" in {
-
       for(_ <- 1 to 100) yield get("/tracing/ok")
-
       Responses2xx.distribution().max should be >= 0L
     }
 

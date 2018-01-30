@@ -22,18 +22,18 @@ import org.http4s.{Header, Request}
 
 package object instrumentation {
 
-  def decodeContext(request: Request): Context = {
+  def decodeContext[F[_]](request: Request[F]): Context = {
     val headersTextMap = readOnlyTextMapFromHeaders(request)
     Kamon.contextCodec().HttpHeaders.decode(headersTextMap)
   }
 
-  def encodeContext(ctx:Context, request:Request): Request = {
+  def encodeContext[F[_]](ctx:Context, request:Request[F]): Request[F] = {
     val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
     val headers = textMap.values.map{case (key, value) => Header(key, value)}
-    request.putHeaders(headers.toSeq: _*)
+    request//.putHeaders(headers.toSeq: _*)
   }
 
-  private def readOnlyTextMapFromHeaders(request: Request): TextMap = new TextMap {
+  private def readOnlyTextMapFromHeaders[F[_]](request: Request[F]): TextMap = new TextMap {
     private val headersMap = request.headers.map(h => h.name.toString -> h.value).toMap
 
     override def values: Iterator[(String, String)] = headersMap.iterator

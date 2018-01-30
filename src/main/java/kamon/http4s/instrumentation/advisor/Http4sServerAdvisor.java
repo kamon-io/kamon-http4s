@@ -17,18 +17,18 @@
 package kamon.http4s.instrumentation.advisor;
 
 import cats.data.Kleisli;
-import fs2.Task;
+import cats.effect.Sync;
 import kamon.agent.libs.net.bytebuddy.asm.Advice;
 import kamon.http4s.instrumentation.HttpServerServiceWrapper;
-import org.http4s.MaybeResponse;
 import org.http4s.Request;
+import org.http4s.Response;
 
 /**
  * Advisor for org.http4s.server.Router$::apply
  */
 public class Http4sServerAdvisor {
     @Advice.OnMethodExit
-    public static void exit(@Advice.Return(readOnly = false) Kleisli<Task, Request, MaybeResponse> httpService) {
-        httpService = HttpServerServiceWrapper.wrap(httpService);
+    public static <F> void exit(@Advice.Return(readOnly = false) Kleisli<?, Request<F>, Response<F>> httpService) {
+        httpService = new HttpServerServiceWrapper().wrap(httpService);
     }
 }

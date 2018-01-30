@@ -26,10 +26,10 @@ object Http4s {
 
   loadConfiguration(Kamon.config())
 
-  def generateOperationName(request: Request): String =
+  def generateOperationName[F[_]](request: Request[F]): String =
     nameGenerator.generateOperationName(request)
 
-  def generateHttpClientOperationName(request: Request): String =
+  def generateHttpClientOperationName[F[_]](request: Request[F]): String =
     nameGenerator.generateHttpClientOperationName(request)
 
   Kamon.onReconfigure((newConfig: Config) => Http4s.loadConfiguration(newConfig))
@@ -42,8 +42,8 @@ object Http4s {
 }
 
 trait NameGenerator {
-  def generateOperationName(request: Request): String
-  def generateHttpClientOperationName(request: Request): String
+  def generateOperationName[F[_]](request: Request[F]): String
+  def generateHttpClientOperationName[F[_]](request: Request[F]): String
 }
 
 class DefaultNameGenerator extends NameGenerator {
@@ -55,11 +55,11 @@ class DefaultNameGenerator extends NameGenerator {
   private val localCache = TrieMap.empty[String, String]
   private val normalizePattern = """\$([^<]+)<[^>]+>""".r
 
-  override def generateHttpClientOperationName(request: Request): String = {
+  override def generateHttpClientOperationName[F[_]](request: Request[F]): String = {
     s"${request.uri.authority}${request.uri.path}"
   }
 
-  override def generateOperationName(request: Request): String = {
+  override def generateOperationName[F[_]](request: Request[F]): String = {
     localCache.getOrElseUpdate(s"${request.method.name}${request.uri.path}", {
       // Convert paths of form GET /foo/bar/$paramname<regexp>/blah to foo.bar.paramname.blah.get
       val uri = request.uri
