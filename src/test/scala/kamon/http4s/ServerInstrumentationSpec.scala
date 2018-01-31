@@ -22,6 +22,7 @@ import java.util.concurrent.Executors
 import cats.effect.IO
 import kamon.Kamon
 import kamon.context.Context.create
+import kamon.http4s.instrumentation.HttpServerServiceWrapper
 import kamon.trace.Span
 import kamon.trace.Span.TagValue
 import org.http4s.HttpService
@@ -49,11 +50,11 @@ class ServerInstrumentationSpec extends WordSpec
     BlazeBuilder[IO]
       .bindAny()
       .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2)))
-      .mountService(HttpService {
+      .mountService(HttpServerServiceWrapper[IO](HttpService {
         case GET -> Root / "tracing" / "ok" =>  Ok("ok")
         case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
         case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
-      })
+      }))
       .start
       .unsafeRunSync()
 

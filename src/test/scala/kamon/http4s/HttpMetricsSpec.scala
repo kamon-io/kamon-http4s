@@ -20,8 +20,7 @@ import java.net.URL
 import java.util.concurrent.Executors
 
 import cats.effect.IO
-import kamon.http4s.Metrics.ActiveRequests
-import kamon.http4s.Metrics.ResponseMetrics._
+import kamon.http4s.Metrics.{GeneralMetrics, ResponseTimeMetrics}
 import kamon.testkit.MetricInspection
 import org.http4s.HttpService
 import org.http4s.dsl.impl.Root
@@ -73,18 +72,18 @@ class HttpMetricsSpec extends WordSpec
       }
 
       eventually(timeout(2 seconds)) {
-        ActiveRequests.distribution().max shouldBe 10L
+        GeneralMetrics().activeRequests.distribution().max shouldBe 10L
       }
 
       eventually(timeout(2 seconds)) {
-        ActiveRequests.distribution().min shouldBe 0L
+        GeneralMetrics().activeRequests.distribution().min shouldBe 0L
       }
       reporter.clear()
     }
 
     "track the response time with status code 2xx" in {
       for(_ <- 1 to 100) yield get("/tracing/ok")
-      Responses2xx.distribution().max should be >= 0L
+      ResponseTimeMetrics().resp2xx.distribution().max should be >= 0L
     }
 
     "track the response time with status code 4xx" in {
@@ -93,7 +92,7 @@ class HttpMetricsSpec extends WordSpec
           get("/tracing/not-found")
         }
       }
-      Responses4xx.distribution().max should be >= 0L
+      ResponseTimeMetrics().resp4xx.distribution().max should be >= 0L
     }
 
     "track the response time with status code 5xx" in {
@@ -102,7 +101,7 @@ class HttpMetricsSpec extends WordSpec
           get("/tracing/error")
         }
       }
-      Responses5xx.distribution().max should be >= 0L
+      ResponseTimeMetrics().resp5xx.distribution().max should be >= 0L
     }
   }
 

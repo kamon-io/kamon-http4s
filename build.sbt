@@ -21,6 +21,8 @@ val scalaExtension  = "io.kamon"         %% "agent-scala-extension"          % "
 val server           = "org.http4s"      %%  "http4s-blaze-server"     	     % "0.18.0-M9"
 val client           = "org.http4s"      %%  "http4s-blaze-client"           % "0.18.0-M9"
 val dsl		           = "org.http4s"      %%  "http4s-dsl"                    % "0.18.0-M9"
+val scalaReflect     = "org.scala-lang"   % "scala-reflect" % "2.12.4"
+
 
 lazy val root = (project in file("."))
   .settings(Seq(
@@ -34,7 +36,7 @@ lazy val root = (project in file("."))
   .settings(javaAgents += "io.kamon"    % "kamon-agent"   % "0.0.8-experimental"  % "compile;test")
   .settings(
     libraryDependencies ++=
-      compileScope(kamonCore, scalaExtension) ++
+      compileScope(scalaReflect, kamonCore, scalaExtension) ++
       providedScope(server, client, dsl) ++
       testScope(scalatest, kamonTestkit, logbackClassic))
 

@@ -29,6 +29,6 @@ import org.http4s.Response;
 public class Http4sServerAdvisor {
     @Advice.OnMethodExit
     public static <F> void exit(@Advice.Return(readOnly = false) Kleisli<?, Request<F>, Response<F>> httpService) {
-        httpService = new HttpServerServiceWrapper().wrap(httpService);
+//        httpService = new HttpServerServiceWrapper().wrap(httpService);
     }
 }
