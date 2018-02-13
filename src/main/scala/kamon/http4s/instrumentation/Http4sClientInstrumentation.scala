@@ -27,7 +27,7 @@ import kamon.http4s.Http4s
 import kamon.http4s.instrumentation.advisor.Http4sClientAdvisor
 import kamon.trace.{Span, SpanCustomizer}
 import org.http4s._
-import org.http4s.client.DisposableResponse
+import org.http4s.client.{Client, DisposableResponse}
 
 class Http4sClientInstrumentation extends KamonInstrumentation {
   forTargetType("org.http4s.client.Client") { builder =>
@@ -93,6 +93,8 @@ case class Traveler[F[_]:Effect](disposableResponse: F[DisposableResponse[F]], c
 
 
 object HttpClientWrapper {
+  def apply[F[_]: Effect](client: Client[F]): Client[F] = Client(open = HttpClientWrapper.wrap(client.open), shutdown = client.shutdown)
+
   def wrap[F[_]:Effect](httpService: Kleisli[F, Request[F], DisposableResponse[F]]): Kleisli[F, Request[F], DisposableResponse[F]] = {
     Kleisli { request =>
       val currentContext = Kamon.currentContext()

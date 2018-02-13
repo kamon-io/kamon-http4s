@@ -26,10 +26,10 @@ import org.http4s.client.DisposableResponse;
  * Advisor for org.http4s.client.Client::<init>
  */
 public class Http4sClientAdvisor {
-    @Advice.OnMethodEnter
-    public static <F> void enter(@Advice.Argument(value = 0, readOnly = false) Kleisli<F, Request<F>, DisposableResponse<F>> httpService) {
-//    public static void enter(@Advice.Argument(value = 0, readOnly = false, typing = Typing.DYNAMIC) Object httpService) {
-//        httpService = ScalaReflection.dynamicInvocation2("wrap", httpService);
-//        httpService = HttpClientWrapper.wrap(httpService);
-    }
+//    @Advice.OnMethodEnter
+//    public static <F> void enter(@Advice.Argument(value = 0, readOnly = false) Kleisli<F, Request<F>, DisposableResponse<F>> httpService) {
+////    public static void enter(@Advice.Argument(value = 0, readOnly = false, typing = Typing.DYNAMIC) Object httpService) {
+////        httpService = ScalaReflection.dynamicInvocation2("wrap", httpService);
+////        httpService = HttpClientWrapper.wrap(httpService);
+//    }
 }

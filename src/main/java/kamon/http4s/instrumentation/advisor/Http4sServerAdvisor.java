@@ -27,8 +27,8 @@ import org.http4s.Response;
  * Advisor for org.http4s.server.Router$::apply
  */
 public class Http4sServerAdvisor {
-    @Advice.OnMethodExit
-    public static <F> void exit(@Advice.Return(readOnly = false) Kleisli<?, Request<F>, Response<F>> httpService) {
-//        httpService = new HttpServerServiceWrapper().wrap(httpService);
-    }
+//    @Advice.OnMethodExit
+//    public static <F> void exit(@Advice.Return(readOnly = false) Kleisli<?, Request<F>, Response<F>> httpService) {
+////        httpService = new HttpServerServiceWrapper().wrap(httpService);
+//    }
 }
