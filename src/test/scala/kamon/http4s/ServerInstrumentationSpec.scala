@@ -50,11 +50,13 @@ class ServerInstrumentationSpec extends WordSpec
     BlazeBuilder[IO]
       .bindAny()
       .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2)))
-      .mountService(HttpServerServiceWrapper[IO](HttpService {
-        case GET -> Root / "tracing" / "ok" =>  Ok("ok")
-        case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
-        case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
-      }))
+      .mountService(
+        HttpServerServiceWrapper(HttpService {
+          case GET -> Root / "tracing" / "ok" =>  Ok("ok")
+          case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
+          case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
+        }
+      ))
       .start
       .unsafeRunSync()
 
