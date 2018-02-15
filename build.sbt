@@ -18,9 +18,9 @@ val kamonTestkit    = "io.kamon"         %% "kamon-testkit"                  % "
 
 val scalaExtension  = "io.kamon"         %% "agent-scala-extension"          % "0.0.8-experimental"
 
-val server           = "org.http4s"      %%  "http4s-blaze-server"     	     % "0.18.0-M9"
-val client           = "org.http4s"      %%  "http4s-blaze-client"           % "0.18.0-M9"
-val dsl		           = "org.http4s"      %%  "http4s-dsl"                    % "0.18.0-M9"
+val server           = "org.http4s"      %%  "http4s-blaze-server"     	     % "0.18.0"
+val client           = "org.http4s"      %%  "http4s-blaze-client"           % "0.18.0"
+val dsl		           = "org.http4s"      %%  "http4s-dsl"                    % "0.18.0"
 val scalaReflect     = "org.scala-lang"   % "scala-reflect" % "2.12.4"
 
 
@@ -32,7 +32,7 @@ lazy val root = (project in file("."))
   .enablePlugins(JavaAgent)
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
-  .settings(scalacOptions ++= Seq("-Ypartial-unification"))
+  .settings(scalacOptions ++= Seq("-Ypartial-unification", "-language:higherKinds"))
   .settings(javaAgents += "io.kamon"    % "kamon-agent"   % "0.0.8-experimental"  % "compile;test")
   .settings(
     libraryDependencies ++=
