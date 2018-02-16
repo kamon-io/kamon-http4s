@@ -140,6 +140,4 @@ object Metrics {
   case class ServiceMetrics(generalMetrics: GeneralMetrics,
                             requestTimeMetrics: RequestTimeMetrics,
                             responseTimeMetrics: ResponseTimeMetrics)
-
-
 }

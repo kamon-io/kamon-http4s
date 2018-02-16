@@ -16,6 +16,7 @@
 
 package kamon.http4s
 
+import cats.effect.Sync
 import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.util.DynamicAccess
@@ -26,8 +27,8 @@ object Http4s {
 
   loadConfiguration(Kamon.config())
 
-  def generateOperationName[F[_]](request: Request[F]): String =
-    nameGenerator.generateOperationName(request)
+  def generateOperationName[F[_]:Sync](request: Request[F]): F[String] =
+    Sync[F].delay(nameGenerator.generateOperationName(request))
 
   def generateHttpClientOperationName[F[_]](request: Request[F]): String =
     nameGenerator.generateHttpClientOperationName(request)

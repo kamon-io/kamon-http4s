@@ -13,15 +13,14 @@
  * =========================================================================================
  */
 
-val kamonCore       = "io.kamon"         %% "kamon-core"                     % "1.0.0"
-val kamonTestkit    = "io.kamon"         %% "kamon-testkit"                  % "1.0.0"
+val kamonCore       = "io.kamon"         %% "kamon-core"                     % "1.0.1"
+val kamonTestkit    = "io.kamon"         %% "kamon-testkit"                  % "1.0.1"
 
 val scalaExtension  = "io.kamon"         %% "agent-scala-extension"          % "0.0.8-experimental"
 
 val server           = "org.http4s"      %%  "http4s-blaze-server"     	     % "0.18.0"
 val client           = "org.http4s"      %%  "http4s-blaze-client"           % "0.18.0"
 val dsl		           = "org.http4s"      %%  "http4s-dsl"                    % "0.18.0"
-val scalaReflect     = "org.scala-lang"   % "scala-reflect" % "2.12.4"
 
 
 lazy val root = (project in file("."))
@@ -36,8 +35,6 @@ lazy val root = (project in file("."))
   .settings(javaAgents += "io.kamon"    % "kamon-agent"   % "0.0.8-experimental"  % "compile;test")
   .settings(
     libraryDependencies ++=
-      compileScope(scalaReflect, kamonCore, scalaExtension) ++
+      compileScope(kamonCore, scalaExtension) ++
       providedScope(server, client, dsl) ++
       testScope(scalatest, kamonTestkit, logbackClassic))
-
-

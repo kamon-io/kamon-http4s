@@ -66,7 +66,7 @@ class HttpMetricsSpec extends WordSpec
   val parallelRequestExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(10))
 
   "The HttpMetrics" should {
-    "track the total of active requests" ignore {
+    "track the total of active requests" in {
       for(_ <- 1 to 10) yield  {
         Future { get("/tracing/ok") }(parallelRequestExecutor)
       }

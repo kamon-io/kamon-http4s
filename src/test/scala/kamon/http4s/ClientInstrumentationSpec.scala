@@ -20,17 +20,16 @@ import cats.effect.IO
 import kamon.Kamon
 import kamon.context.Context
 import kamon.context.Context.create
-import kamon.http4s.instrumentation.HttpClientWrapper
+import kamon.http4s.middleware.client.ClientMiddleware
 import kamon.trace.Span.TagValue
 import kamon.trace.{Span, SpanCustomizer}
 import org.http4s.HttpService
-import org.http4s.client.{Client, DisposableResponse}
+import org.http4s.client.Client
 import org.http4s.dsl.impl.Root
 import org.http4s.dsl.io._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
-
 
 class ClientInstrumentationSpec extends WordSpec
   with Matchers
@@ -49,7 +48,8 @@ class ClientInstrumentationSpec extends WordSpec
         Ok()
   }
 
-  val client = HttpClientWrapper[IO](Client.fromHttpService[IO](service))
+
+  val client: Client[IO] = ClientMiddleware[IO](Client.fromHttpService[IO](service))
 
   "The Client instrumentation" should {
     "propagate the current context and generate a span inside an action and complete the ws request" in {
