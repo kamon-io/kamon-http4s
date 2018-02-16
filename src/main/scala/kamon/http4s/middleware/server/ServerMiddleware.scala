@@ -104,9 +104,9 @@ object ServerMiddleware {
         Kamon.buildSpan(operationName)
           .asChildOf(incomingContext.get(Span.ContextKey))
           .withMetricTag("span.kind", "server")
+          .withMetricTag("component", "http4s.server")
           .withTag("http.method", request.method.name)
           .withTag("http.url", request.uri.renderString)
-          .withTag("component", "http4s.server")
           .start()
       }
     } yield serverSpan

@@ -41,9 +41,9 @@ object ClientMiddleware {
           val clientSpanBuilder = Kamon.buildSpan(Http4s.generateHttpClientOperationName(request))
             .asChildOf(clientSpan)
             .withMetricTag("span.kind", "client")
+            .withMetricTag("component", "http4s.client")
             .withTag("http.method", request.method.name)
             .withTag("http.url", request.uri.renderString)
-            .withTag("component", "http4s.client")
 
           val clientRequestSpan: Span = currentContext.get(SpanCustomizer.ContextKey)
             .customize(clientSpanBuilder)
@@ -53,7 +53,13 @@ object ClientMiddleware {
           val encodedRequest = encodeContext(newContext, request)
 
           httpService(encodedRequest).map { response =>
-            clientRequestSpan.tag("http.status_code", response.response.status.code)
+
+            if (Http4s.addHttpStatusCodeAsMetricTag) {
+              clientRequestSpan.tagMetric("http.status_code", response.response.status.code.toString)
+            } else {
+              clientRequestSpan.tag("http.status_code", response.response.status.code)
+            }
+
             if (isError(response.response.status.code))
               clientRequestSpan.addError("error")
             if (response.response.status.code == StatusCodes.NotFound)
