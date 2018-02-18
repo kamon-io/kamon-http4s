@@ -16,7 +16,7 @@
 
 package kamon.http4s
 
-import cats.effect.Sync
+import cats.effect.{Effect, Sync}
 import kamon.Kamon
 import kamon.context.{Context, TextMap}
 import org.http4s.{Header, Request}
@@ -32,10 +32,11 @@ package object instrumentation {
     } yield context
   }
 
-  def encodeContext[F[_]:Sync](ctx:Context, request:Request[F]): Request[F] = {
+  def encodeContext[F[_]:Effect](ctx:Context)
+                                (request:Request[F]): F[Request[F]] = {
     val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
     val headers = textMap.values.map{case (key, value) => Header(key, value)}
-    request.putHeaders(headers.toSeq: _*)
+    Effect[F].delay(request.putHeaders(headers.toSeq: _*))
   }
 
   def readOnlyTextMapFromHeaders[F[_]:Sync](request: Request[F]): F[TextMap] = Sync[F].delay(new TextMap {

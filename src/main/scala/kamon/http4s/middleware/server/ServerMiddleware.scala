@@ -44,9 +44,9 @@ object ServerMiddleware {
                                              (req: Request[F])
                                              (implicit F: Sync[F], L: Log[F]): OptionT[F, Response[F]] = OptionT {
     for {
-      now <- Sync[F].delay(Kamon.clock().instant())
+      now <- F.delay(Kamon.clock().instant())
       serverSpan <- createSpan(req)
-      _ <- Sync[F].delay(serviceMetrics.generalMetrics.activeRequests.increment())
+      _ <- F.delay(serviceMetrics.generalMetrics.activeRequests.increment())
       e <- Kamon.withContext(Context.create(Span.ContextKey, serverSpan))(service(req).value.attempt)
       resp <- kamonServiceHandler(req.method, now, serviceMetrics, serverSpan, e)
     } yield resp
@@ -59,7 +59,7 @@ object ServerMiddleware {
                                         e: Either[Throwable, Option[Response[F]]])
                                        (implicit F: Sync[F], L: Log[F]): F[Option[Response[F]]] = {
     for {
-      elapsed <- EitherT.liftF[F, Throwable, Long](Sync[F].delay(start.until(Kamon.clock().instant(), ChronoUnit.NANOS)))
+      elapsed <- EitherT.liftF[F, Throwable, Long](F.delay(start.until(Kamon.clock().instant(), ChronoUnit.NANOS)))
       respOpt <- EitherT(e.bitraverse[F, Throwable, Option[Response[F]]](
         manageServiceErrors(method, elapsed, serviceMetrics).as(_),
         _.map(manageResponse(method, start, elapsed, serviceMetrics, serverSpan)).pure[F]
@@ -70,17 +70,17 @@ object ServerMiddleware {
   ).flatten
 
   private def manageResponse[F[_]](m: Method,
-                                         start: Instant,
-                                         elapsedInit: Long,
-                                         serviceMetrics: ServiceMetrics,
-                                         spanServer:Span)
-                                        (response: Response[F])
-                                        (implicit F: Sync[F], L: Log[F]): Response[F] = {
+                                   start: Instant,
+                                   elapsedInit: Long,
+                                   serviceMetrics: ServiceMetrics,
+                                   spanServer:Span)
+                                   (response: Response[F])
+                                   (implicit F: Sync[F], L: Log[F]): Response[F] = {
     val newBody = response.body
       .onFinalize {
         for {
-          endTimestamp <- Sync[F].delay(Kamon.clock().instant())
-          elapsed <- Sync[F].delay(start.until(endTimestamp, ChronoUnit.NANOS))
+          endTimestamp <- F.delay(Kamon.clock().instant())
+          elapsed <- F.delay(start.until(endTimestamp, ChronoUnit.NANOS))
           _ <- incrementCounts(serviceMetrics.generalMetrics.headersTimes, elapsedInit)
           _ <- requestMetrics(serviceMetrics.requestTimeMetrics, serviceMetrics.generalMetrics.activeRequests)(m, elapsed)
           _ <- responseMetrics(serviceMetrics.responseTimeMetrics, response.status, elapsed)
@@ -96,41 +96,46 @@ object ServerMiddleware {
     response.copy(body = newBody)
   }
 
-  private def createSpan[F[_]: Sync](request: Request[F]): F[Span] = {
+  private def createSpan[F[_]](request: Request[F])
+                              (implicit F: Sync[F]): F[Span] = {
     for {
       incomingContext <- decodeContext(request)
       operationName <- kamon.http4s.Http4s.generateOperationName(request)
-      serverSpan <- Sync[F].delay {
-        Kamon.buildSpan(operationName)
-          .asChildOf(incomingContext.get(Span.ContextKey))
-          .withMetricTag("span.kind", "server")
-          .withMetricTag("component", "http4s.server")
-          .withTag("http.method", request.method.name)
-          .withTag("http.url", request.uri.renderString)
-          .start()
-      }
+      serverSpan <- F.delay(Kamon.buildSpan(operationName)
+        .asChildOf(incomingContext.get(Span.ContextKey))
+        .withMetricTag("span.kind", "server")
+        .withMetricTag("component", "http4s.server")
+        .withTag("http.method", request.method.name)
+        .withTag("http.url", request.uri.renderString)
+        .start())
     } yield serverSpan
   }
 
-  private def finishSpan[F[_]: Sync](serverSpan:Span, status: Status, endTimestamp: Instant): F[Unit] =
-    Sync[F].delay {
-      serverSpan.tag("http.status_code", status.code)
+  private def finishSpan[F[_]](serverSpan:Span,
+                               status: Status,
+                               endTimestamp: Instant)
+                              (implicit F: Sync[F]): F[Unit] =
+    F.delay(serverSpan.tag("http.status_code", status.code)) *>
+      addStatusCode(serverSpan, status.code) *> F.delay(serverSpan.finish(endTimestamp))
 
-      if (status.code < 500) {
-        if (status.code == StatusCodes.NotFound)
-          serverSpan.setOperationName("not-found")
+
+  private def addStatusCode[F[_]](span: Span, code:Int)(implicit F: Sync[F]):F[Unit] =
+    F.delay {
+      if (code < 500) {
+        if (code == StatusCodes.NotFound) span.setOperationName("not-found")
       } else {
-        serverSpan.addError("error")
+        span.addError("error")
       }
-      serverSpan.finish(endTimestamp)
     }
 
-  private def manageServiceErrors[F[_]: Sync](m: Method, elapsed: Long, serviceMetrics: ServiceMetrics): F[Unit] =
+  private def manageServiceErrors[F[_]](m: Method, elapsed: Long, serviceMetrics: ServiceMetrics)
+                                       (implicit F: Sync[F]): F[Unit] =
     requestMetrics(serviceMetrics.requestTimeMetrics, serviceMetrics.generalMetrics.activeRequests)(m,elapsed) *>
       incrementCounts(serviceMetrics.generalMetrics.serviceErrors, elapsed)
 
-  private def handleUnmatched[F[_]: Sync](serviceMetrics: ServiceMetrics): F[Option[Response[F]]] =
-    Sync[F].delay(serviceMetrics.generalMetrics.activeRequests.decrement()).as(Option.empty[Response[F]])
+  private def handleUnmatched[F[_]](serviceMetrics: ServiceMetrics)
+                                   (implicit F: Sync[F]): F[Option[Response[F]]] =
+    F.delay(serviceMetrics.generalMetrics.activeRequests.decrement()).as(Option.empty[Response[F]])
 
   private def handleMatched[F[_]: Sync](resp: Response[F]): F[Option[Response[F]]] =
     resp.some.pure[F]
@@ -144,13 +149,15 @@ object ServerMiddleware {
       case _ => responseTime.resp5xx
     }
 
-  private def responseMetrics[F[_]: Sync](responseTimers: ResponseTimeMetrics, s: Status, elapsed: Long): F[Unit] =
-    incrementCounts(responseTime(responseTimers, s), elapsed)
+  private def responseMetrics[F[_]](responseTimers: ResponseTimeMetrics, s: Status, elapsed: Long)
+                                   (implicit F: Sync[F]): F[Unit] =
+      incrementCounts(responseTime(responseTimers, s), elapsed)
 
-  private def incrementCounts[F[_]: Sync](histogram: Histogram, elapsed: Long): F[Unit] =
-    Sync[F].delay(histogram.record(elapsed))
+  private def incrementCounts[F[_]](histogram: Histogram, elapsed: Long)
+                                   (implicit F: Sync[F]): F[Unit] =
+    F.delay(histogram.record(elapsed))
 
-  private def requestTimer[F[_]: Sync](rt: RequestTimeMetrics, method: Method) = method match {
+  private def requestTimer(rt: RequestTimeMetrics, method: Method) = method match {
     case Method.GET => rt.getRequest
     case Method.POST => rt.postRequest
     case Method.PUT => rt.putRequest
@@ -163,8 +170,10 @@ object ServerMiddleware {
     case _ => rt.otherRequest
   }
 
-  private def requestMetrics[F[_]: Sync](rt: RequestTimeMetrics, activeRequests: RangeSampler)(method: Method, elapsed: Long): F[Unit] = {
+  private def requestMetrics[F[_]](rt: RequestTimeMetrics, activeRequests: RangeSampler)
+                                        (method: Method, elapsed: Long)
+                                        (implicit F: Sync[F]): F[Unit] = {
     val timer = requestTimer(rt, method)
-    incrementCounts(timer, elapsed) *> incrementCounts(rt.totalRequest, elapsed) *> Sync[F].delay(activeRequests.decrement())
+    incrementCounts(timer, elapsed) *> incrementCounts(rt.totalRequest, elapsed) *> F.delay(activeRequests.decrement())
   }
 }

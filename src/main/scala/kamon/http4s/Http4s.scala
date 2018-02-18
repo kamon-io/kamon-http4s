@@ -16,7 +16,8 @@
 
 package kamon.http4s
 
-import cats.effect.Sync
+import cats.data.State
+import cats.effect.{Effect, Sync}
 import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.util.DynamicAccess
@@ -29,8 +30,8 @@ object Http4s {
   def generateOperationName[F[_]:Sync](request: Request[F]): F[String] =
     Sync[F].delay(nameGenerator.generateOperationName(request))
 
-  def generateHttpClientOperationName[F[_]](request: Request[F]): String =
-    nameGenerator.generateHttpClientOperationName(request)
+  def generateHttpClientOperationName[F[_]:Effect](request: Request[F]): F[String] =
+    Effect[F].delay(nameGenerator.generateHttpClientOperationName(request))
 
   private def nameGeneratorFromConfig(config: Config): NameGenerator = {
     val dynamic = new DynamicAccess(getClass.getClassLoader)
