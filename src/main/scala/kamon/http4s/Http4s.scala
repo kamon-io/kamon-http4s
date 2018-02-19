@@ -16,7 +16,6 @@
 
 package kamon.http4s
 
-import cats.data.State
 import cats.effect.{Effect, Sync}
 import com.typesafe.config.Config
 import kamon.Kamon

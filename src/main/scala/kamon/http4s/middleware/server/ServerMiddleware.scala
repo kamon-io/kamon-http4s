@@ -116,10 +116,10 @@ object ServerMiddleware {
                                endTimestamp: Instant)
                               (implicit F: Sync[F]): F[Unit] =
     F.delay(serverSpan.tag("http.status_code", status.code)) *>
-      addStatusCode(serverSpan, status.code) *> F.delay(serverSpan.finish(endTimestamp))
+      handleStatusCode(serverSpan, status.code) *> F.delay(serverSpan.finish(endTimestamp))
 
 
-  private def addStatusCode[F[_]](span: Span, code:Int)(implicit F: Sync[F]):F[Unit] =
+  private def handleStatusCode[F[_]](span: Span, code:Int)(implicit F: Sync[F]):F[Unit] =
     F.delay {
       if (code < 500) {
         if (code == StatusCodes.NotFound) span.setOperationName("not-found")

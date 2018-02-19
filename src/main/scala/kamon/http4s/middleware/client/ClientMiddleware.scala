@@ -72,7 +72,7 @@ object ClientMiddleware {
                                    (implicit F:Effect[F]): F[Unit] = {
 
     val code = response.response.status.code
-    handleStatusCode(span, code) *> handleError(span, code) *> handleNotfoud(span, code) *>  F.delay(span.finish())
+    handleStatusCode(span, code) *> handleError(span, code) *> handleNotFound(span, code) *>  F.delay(span.finish())
   }
 
   private def handleStatusCode[F[_]](span: Span, code:Int)
@@ -85,7 +85,7 @@ object ClientMiddleware {
   private def handleError[F[_]](span: Span, code:Int)(implicit F: Effect[F]):F[Unit] =
     F.delay(if(isError(code)) span.addError("error"))
 
-  private def handleNotfoud[F[_]](span: Span, code:Int)(implicit F: Effect[F]):F[Unit] =
+  private def handleNotFound[F[_]](span: Span, code:Int)(implicit F: Effect[F]):F[Unit] =
   F.delay(if(code == StatusCodes.NotFound) span.setOperationName("not-found"))
 
   private def createSpanBuilder[F[_]](clientSpan: Span, ctx:Context)

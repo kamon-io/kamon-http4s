@@ -22,6 +22,7 @@ import java.util.concurrent.Executors
 import cats.effect.IO
 import kamon.Kamon
 import kamon.context.Context.create
+import kamon.http4s.middleware.server.ServerMiddleware
 import kamon.trace.Span
 import kamon.trace.Span.TagValue
 import org.http4s.HttpService
