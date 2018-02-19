@@ -157,23 +157,14 @@ object ServerMiddleware {
                                    (implicit F: Sync[F]): F[Unit] =
     F.delay(histogram.record(elapsed))
 
-  private def requestTimer(rt: RequestTimeMetrics, method: Method) = method match {
-    case Method.GET => rt.getRequest
-    case Method.POST => rt.postRequest
-    case Method.PUT => rt.putRequest
-    case Method.HEAD => rt.headRequest
-    case Method.MOVE => rt.moveRequest
-    case Method.OPTIONS => rt.optionRequest
-    case Method.TRACE => rt.traceRequest
-    case Method.CONNECT => rt.connectRequest
-    case Method.DELETE => rt.deleteRequest
-    case _ => rt.otherRequest
+  private def requestTime(rt: RequestTimeMetrics, method: Method) = {
+    rt.forMethod(method.name.toLowerCase())
   }
 
   private def requestMetrics[F[_]](rt: RequestTimeMetrics, activeRequests: RangeSampler)
                                         (method: Method, elapsed: Long)
                                         (implicit F: Sync[F]): F[Unit] = {
-    val timer = requestTimer(rt, method)
-    incrementCounts(timer, elapsed) *> incrementCounts(rt.totalRequest, elapsed) *> F.delay(activeRequests.decrement())
+    val timer = requestTime(rt, method)
+    incrementCounts(timer, elapsed) *> incrementCounts(rt.forMethod("total"), elapsed) *> F.delay(activeRequests.decrement())
   }
 }

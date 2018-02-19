@@ -101,35 +101,8 @@ object Metrics {
     * - http-request: Request time by status code.
     */
 
-  private val requestTimeMetric = Kamon.histogram("http-request", time.nanoseconds)
-
-  case class RequestTimeMetrics(getRequest: Histogram,
-                                postRequest: Histogram,
-                                putRequest: Histogram,
-                                headRequest: Histogram,
-                                moveRequest: Histogram,
-                                optionRequest: Histogram,
-                                traceRequest: Histogram,
-                                connectRequest: Histogram,
-                                deleteRequest: Histogram,
-                                otherRequest: Histogram,
-                                totalRequest: Histogram)
-
-  object RequestTimeMetrics {
-    def apply(): RequestTimeMetrics = {
-      RequestTimeMetrics(
-        forMethod("get"),
-        forMethod("post"),
-        forMethod("put"),
-        forMethod("head"),
-        forMethod("move"),
-        forMethod("option"),
-        forMethod("trace"),
-        forMethod("connect"),
-        forMethod("delete"),
-        forMethod("other"),
-        forMethod("total"))
-    }
+  case class RequestTimeMetrics() {
+    private val requestTimeMetric = Kamon.histogram("http-request", time.nanoseconds)
 
     def forMethod(method: String): Histogram = {
       val requestMetricsTags = Map("component" -> "http4s-server", "method" -> method)
