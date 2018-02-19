@@ -41,15 +41,8 @@ object Metrics {
                             activeRequests: RangeSampler,
                             abnormalTerminations: Histogram,
                             serviceErrors: Histogram,
-                            headersTimes: Histogram) {
+                            headersTimes: Histogram)
 
-    def cleanup(): Boolean = {
-      activeRequestsMetric.remove(tags)
-      abnormalTerminationMetric.remove(tags)
-      serviceErrorsMetric.remove(tags)
-      headersTimesMetric.remove(tags)
-    }
-  }
 
   object GeneralMetrics {
     def apply(): GeneralMetrics = {
@@ -68,10 +61,6 @@ object Metrics {
     *
     * - http-responses: Response time by status code.
     */
-
-
-  private val responseTimeMetric = Kamon.histogram("http-responses", time.nanoseconds)
-
   case class ResponseTimeMetrics(resp1xx: Histogram,
                                  resp2xx: Histogram,
                                  resp3xx: Histogram,
@@ -79,6 +68,8 @@ object Metrics {
                                  resp5xx: Histogram)
 
   object ResponseTimeMetrics {
+    private val responseTimeMetric = Kamon.histogram("http-responses", time.nanoseconds)
+
     def apply(): ResponseTimeMetrics = {
       ResponseTimeMetrics(
         forStatusCode("1xx"),
