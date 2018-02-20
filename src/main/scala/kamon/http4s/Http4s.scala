@@ -16,29 +16,38 @@
 
 package kamon.http4s
 
+import cats.effect.{Effect, Sync}
 import com.typesafe.config.Config
-import kamon.Kamon
 import kamon.util.DynamicAccess
+import kamon.{Kamon, OnReconfigureHook}
 import org.http4s.Request
 
 object Http4s {
-  @volatile private var nameGenerator: NameGenerator = new DefaultNameGenerator()
+  @volatile var nameGenerator: NameGenerator = nameGeneratorFromConfig(Kamon.config())
+  @volatile var addHttpStatusCodeAsMetricTag: Boolean = addHttpStatusCodeAsMetricTagFromConfig(Kamon.config())
 
-  loadConfiguration(Kamon.config())
+  def generateOperationName[F[_]:Sync](request: Request[F]): F[String] =
+    Sync[F].delay(nameGenerator.generateOperationName(request))
 
-  def generateOperationName[F[_]](request: Request[F]): String =
-    nameGenerator.generateOperationName(request)
+  def generateHttpClientOperationName[F[_]:Effect](request: Request[F]): F[String] =
+    Effect[F].delay(nameGenerator.generateHttpClientOperationName(request))
 
-  def generateHttpClientOperationName[F[_]](request: Request[F]): String =
-    nameGenerator.generateHttpClientOperationName(request)
-
-  Kamon.onReconfigure((newConfig: Config) => Http4s.loadConfiguration(newConfig))
-
-  private def loadConfiguration(config: Config): Unit = {
+  private def nameGeneratorFromConfig(config: Config): NameGenerator = {
     val dynamic = new DynamicAccess(getClass.getClassLoader)
     val nameGeneratorFQCN = config.getString("kamon.http4s.name-generator")
-    nameGenerator = dynamic.createInstanceFor[NameGenerator](nameGeneratorFQCN, Nil).get
+    dynamic.createInstanceFor[NameGenerator](nameGeneratorFQCN, Nil).get
   }
+
+  private def addHttpStatusCodeAsMetricTagFromConfig(config: Config): Boolean =
+    Kamon.config.getBoolean("kamon.http4s.add-http-status-code-as-metric-tag")
+
+
+  Kamon.onReconfigure(new OnReconfigureHook {
+    override def onReconfigure(newConfig: Config): Unit = {
+      nameGenerator = nameGeneratorFromConfig(newConfig)
+      addHttpStatusCodeAsMetricTag = addHttpStatusCodeAsMetricTagFromConfig(newConfig)
+    }
+  })
 }
 
 trait NameGenerator {

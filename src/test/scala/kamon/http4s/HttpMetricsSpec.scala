@@ -21,6 +21,7 @@ import java.util.concurrent.Executors
 
 import cats.effect.IO
 import kamon.http4s.Metrics.{GeneralMetrics, ResponseTimeMetrics}
+import kamon.http4s.middleware.server.KamonSupport
 import kamon.testkit.MetricInspection
 import org.http4s.HttpService
 import org.http4s.dsl.impl.Root
@@ -48,11 +49,11 @@ class HttpMetricsSpec extends WordSpec
     BlazeBuilder[IO]
       .bindAny()
       .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2)))
-      .mountService(HttpService[IO] {
+      .mountService(KamonSupport(HttpService[IO] {
         case GET -> Root / "tracing" / "ok" =>  Ok("ok")
         case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
         case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
-      })
+      }))
       .start
       .unsafeRunSync()
 
@@ -66,7 +67,7 @@ class HttpMetricsSpec extends WordSpec
   val parallelRequestExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(10))
 
   "The HttpMetrics" should {
-    "track the total of active requests" ignore {
+    "track the total of active requests" in {
       for(_ <- 1 to 10) yield  {
         Future { get("/tracing/ok") }(parallelRequestExecutor)
       }
@@ -83,7 +84,7 @@ class HttpMetricsSpec extends WordSpec
 
     "track the response time with status code 2xx" in {
       for(_ <- 1 to 100) yield get("/tracing/ok")
-      ResponseTimeMetrics().resp2xx.distribution().max should be >= 0L
+      ResponseTimeMetrics().forStatusCode("2xx").distribution().max should be >= 0L
     }
 
     "track the response time with status code 4xx" in {
@@ -92,7 +93,7 @@ class HttpMetricsSpec extends WordSpec
           get("/tracing/not-found")
         }
       }
-      ResponseTimeMetrics().resp4xx.distribution().max should be >= 0L
+      ResponseTimeMetrics().forStatusCode("4xx").distribution().max should be >= 0L
     }
 
     "track the response time with status code 5xx" in {
@@ -101,7 +102,7 @@ class HttpMetricsSpec extends WordSpec
           get("/tracing/error")
         }
       }
-      ResponseTimeMetrics().resp5xx.distribution().max should be >= 0L
+      ResponseTimeMetrics().forStatusCode("5xx").distribution().max should be >= 0L
     }
   }
 

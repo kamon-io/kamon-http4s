@@ -13,31 +13,24 @@
  * =========================================================================================
  */
 
-val kamonCore       = "io.kamon"         %% "kamon-core"                     % "1.0.0"
-val kamonTestkit    = "io.kamon"         %% "kamon-testkit"                  % "1.0.0"
-
-val scalaExtension  = "io.kamon"         %% "agent-scala-extension"          % "0.0.8-experimental"
+val kamonCore       = "io.kamon"         %% "kamon-core"                     % "1.0.1"
+val kamonTestkit    = "io.kamon"         %% "kamon-testkit"                  % "1.0.1"
 
 val server           = "org.http4s"      %%  "http4s-blaze-server"     	     % "0.18.0"
 val client           = "org.http4s"      %%  "http4s-blaze-client"           % "0.18.0"
 val dsl		           = "org.http4s"      %%  "http4s-dsl"                    % "0.18.0"
-val scalaReflect     = "org.scala-lang"   % "scala-reflect" % "2.12.4"
 
 
 lazy val root = (project in file("."))
   .settings(Seq(
       name := "kamon-http4s",
       scalaVersion := "2.12.4",
-      crossScalaVersions := Seq("2.11.8", "2.12.4")))
-  .enablePlugins(JavaAgent)
+      crossScalaVersions := Seq("2.11.12", "2.12.4")))
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
   .settings(scalacOptions ++= Seq("-Ypartial-unification", "-language:higherKinds"))
-  .settings(javaAgents += "io.kamon"    % "kamon-agent"   % "0.0.8-experimental"  % "compile;test")
   .settings(
     libraryDependencies ++=
-      compileScope(scalaReflect, kamonCore, scalaExtension) ++
+      compileScope(kamonCore) ++
       providedScope(server, client, dsl) ++
       testScope(scalatest, kamonTestkit, logbackClassic))
-
-
