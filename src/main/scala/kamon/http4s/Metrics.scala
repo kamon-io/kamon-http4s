@@ -32,27 +32,19 @@ object Metrics {
     * - headers-times:The number of abnormal requests termination.
     */
 
-  val activeRequestsMetric = Kamon.rangeSampler("active-requests")
-  val abnormalTerminationMetric = Kamon.histogram("abnormal-termination")
-  val serviceErrorsMetric = Kamon.histogram("service-errors")
-  val headersTimesMetric = Kamon.histogram("headers-times")
-
-  case class GeneralMetrics(tags: Map[String, String],
-                            activeRequests: RangeSampler,
+  case class GeneralMetrics(activeRequests: RangeSampler,
                             abnormalTerminations: Histogram,
                             serviceErrors: Histogram,
                             headersTimes: Histogram)
-
 
   object GeneralMetrics {
     def apply(): GeneralMetrics = {
       val generalTags = Map("component" -> "http4s-server")
       new GeneralMetrics(
-        generalTags,
-        activeRequestsMetric.refine(generalTags),
-        abnormalTerminationMetric.refine(generalTags),
-        serviceErrorsMetric.refine(generalTags),
-        headersTimesMetric.refine(generalTags))
+        Kamon.rangeSampler("active-requests").refine(generalTags),
+        Kamon.histogram("abnormal-termination").refine(generalTags),
+        Kamon.histogram("service-errors").refine(generalTags),
+        Kamon.histogram("headers-times").refine(generalTags))
     }
   }
 
