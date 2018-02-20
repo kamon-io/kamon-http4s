@@ -142,11 +142,11 @@ object ServerMiddleware {
 
   private def responseTime(responseTime: ResponseTimeMetrics, status: Status): Histogram =
     status.code match {
-      case hundreds if hundreds < 200 => responseTime.resp1xx
-      case twohundreds if twohundreds < 300 => responseTime.resp2xx
-      case threehundreds if threehundreds < 400 => responseTime.resp3xx
-      case fourhundreds if fourhundreds < 500 => responseTime.resp4xx
-      case _ => responseTime.resp5xx
+      case hundreds if hundreds < 200 => responseTime.forStatusCode("1xx")
+      case twohundreds if twohundreds < 300 => responseTime.forStatusCode("2xx")
+      case threehundreds if threehundreds < 400 => responseTime.forStatusCode("3xx")
+      case fourhundreds if fourhundreds < 500 => responseTime.forStatusCode("4xx")
+      case _ => responseTime.forStatusCode("5xx")
     }
 
   private def responseMetrics[F[_]](responseTimers: ResponseTimeMetrics, s: Status, elapsed: Long)

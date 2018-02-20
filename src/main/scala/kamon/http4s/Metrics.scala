@@ -18,7 +18,7 @@ package kamon.http4s
 
 import kamon.Kamon
 import kamon.metric.MeasurementUnit._
-import kamon.metric.{Histogram, RangeSampler}
+import kamon.metric.{Histogram, HistogramMetric, RangeSampler}
 
 
 object Metrics {
@@ -61,28 +61,16 @@ object Metrics {
     *
     * - http-responses: Response time by status code.
     */
-  case class ResponseTimeMetrics(resp1xx: Histogram,
-                                 resp2xx: Histogram,
-                                 resp3xx: Histogram,
-                                 resp4xx: Histogram,
-                                 resp5xx: Histogram)
-
-  object ResponseTimeMetrics {
-    private val responseTimeMetric = Kamon.histogram("http-responses", time.nanoseconds)
-
-    def apply(): ResponseTimeMetrics = {
-      ResponseTimeMetrics(
-        forStatusCode("1xx"),
-        forStatusCode("2xx"),
-        forStatusCode("3xx"),
-        forStatusCode("4xx"),
-        forStatusCode("5xx"))
-    }
-
+  case class ResponseTimeMetrics(responseTimeMetric:HistogramMetric) {
     def forStatusCode(statusCode: String): Histogram = {
       val responseMetricsTags = Map("component" -> "http4s-server", "status-code" -> statusCode)
       responseTimeMetric.refine(responseMetricsTags)
     }
+  }
+
+  object ResponseTimeMetrics {
+    def apply(): ResponseTimeMetrics =
+      new ResponseTimeMetrics(Kamon.histogram("http-responses", time.nanoseconds))
   }
 
 
@@ -92,13 +80,16 @@ object Metrics {
     * - http-request: Request time by status code.
     */
 
-  case class RequestTimeMetrics() {
-    private val requestTimeMetric = Kamon.histogram("http-request", time.nanoseconds)
-
+  case class RequestTimeMetrics(requestTimeMetric:HistogramMetric) {
     def forMethod(method: String): Histogram = {
       val requestMetricsTags = Map("component" -> "http4s-server", "method" -> method)
       requestTimeMetric.refine(requestMetricsTags)
     }
+  }
+
+  object RequestTimeMetrics {
+    def apply(): RequestTimeMetrics =
+      new RequestTimeMetrics(Kamon.histogram("http-request", time.nanoseconds))
   }
 
   case class ServiceMetrics(generalMetrics: GeneralMetrics,

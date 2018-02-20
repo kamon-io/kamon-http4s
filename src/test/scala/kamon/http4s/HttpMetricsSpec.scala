@@ -83,7 +83,7 @@ class HttpMetricsSpec extends WordSpec
 
     "track the response time with status code 2xx" in {
       for(_ <- 1 to 100) yield get("/tracing/ok")
-      ResponseTimeMetrics().resp2xx.distribution().max should be >= 0L
+      ResponseTimeMetrics().forStatusCode("2xx").distribution().max should be >= 0L
     }
 
     "track the response time with status code 4xx" in {
@@ -92,7 +92,7 @@ class HttpMetricsSpec extends WordSpec
           get("/tracing/not-found")
         }
       }
-      ResponseTimeMetrics().resp4xx.distribution().max should be >= 0L
+      ResponseTimeMetrics().forStatusCode("4xx").distribution().max should be >= 0L
     }
 
     "track the response time with status code 5xx" in {
@@ -101,7 +101,7 @@ class HttpMetricsSpec extends WordSpec
           get("/tracing/error")
         }
       }
-      ResponseTimeMetrics().resp5xx.distribution().max should be >= 0L
+      ResponseTimeMetrics().forStatusCode("5xx").distribution().max should be >= 0L
     }
   }
 
