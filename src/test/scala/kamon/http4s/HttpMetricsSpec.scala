@@ -21,6 +21,7 @@ import java.util.concurrent.Executors
 
 import cats.effect.IO
 import kamon.http4s.Metrics.{GeneralMetrics, ResponseTimeMetrics}
+import kamon.http4s.middleware.server.KamonSupport
 import kamon.testkit.MetricInspection
 import org.http4s.HttpService
 import org.http4s.dsl.impl.Root
@@ -48,11 +49,11 @@ class HttpMetricsSpec extends WordSpec
     BlazeBuilder[IO]
       .bindAny()
       .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2)))
-      .mountService(HttpService[IO] {
+      .mountService(KamonSupport(HttpService[IO] {
         case GET -> Root / "tracing" / "ok" =>  Ok("ok")
         case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
         case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
-      })
+      }))
       .start
       .unsafeRunSync()
 

@@ -22,14 +22,13 @@ import cats.effect.Effect
 import cats.implicits._
 import kamon.Kamon
 import kamon.context.Context
-import kamon.http4s.Http4s
-import kamon.http4s.instrumentation.{StatusCodes, encodeContext, isError}
+import kamon.http4s.{Http4s, StatusCodes, encodeContext, isError}
 import kamon.trace.Tracer.SpanBuilder
 import kamon.trace.{Span, SpanCustomizer}
 import org.http4s.Request
 import org.http4s.client.{Client, DisposableResponse}
 
-object ClientMiddleware {
+object KamonSupport {
 
   def apply[F[_]](client: Client[F])(implicit F:Effect[F]): Client[F] = {
     client.copy(Kleisli(serviceHandler(client.open)))

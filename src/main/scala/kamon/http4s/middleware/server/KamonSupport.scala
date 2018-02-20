@@ -26,12 +26,12 @@ import fs2.Stream
 import kamon.Kamon
 import kamon.context.Context
 import kamon.http4s.Metrics.{GeneralMetrics, RequestTimeMetrics, ResponseTimeMetrics, ServiceMetrics}
-import kamon.http4s.instrumentation.{Log, StatusCodes, decodeContext}
+import kamon.http4s.{Log, StatusCodes, decodeContext}
 import kamon.metric.{Histogram, RangeSampler}
 import kamon.trace.Span
 import org.http4s.{HttpService, Method, Request, Response, Status}
 
-object ServerMiddleware {
+object KamonSupport {
 
   def apply[F[_]:Sync](service: HttpService[F]):HttpService[F] = {
     import Log._

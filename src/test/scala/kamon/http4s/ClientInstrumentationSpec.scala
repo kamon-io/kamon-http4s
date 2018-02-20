@@ -20,7 +20,7 @@ import cats.effect.IO
 import kamon.Kamon
 import kamon.context.Context
 import kamon.context.Context.create
-import kamon.http4s.middleware.client.ClientMiddleware
+import kamon.http4s.middleware.client.KamonSupport
 import kamon.trace.Span.TagValue
 import kamon.trace.{Span, SpanCustomizer}
 import org.http4s.HttpService
@@ -49,7 +49,7 @@ class ClientInstrumentationSpec extends WordSpec
   }
 
 
-  val client: Client[IO] = ClientMiddleware[IO](Client.fromHttpService[IO](service))
+  val client: Client[IO] = KamonSupport[IO](Client.fromHttpService[IO](service))
 
   "The Client instrumentation" should {
     "propagate the current context and generate a span inside an action and complete the ws request" in {
