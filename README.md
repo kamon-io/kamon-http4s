@@ -1,4 +1,4 @@
-# Kamon http4s <img align="right" src="https://rawgit.com/kamon-io/Kamon/master/kamon-logo.svg" height="150px" style="padding-left: 20px"/> 
+# Kamon http4s <img align="right" src="https://rawgit.com/kamon-io/Kamon/master/kamon-logo.svg" height="150px" style="padding-left: 20px"/>
 [![Build Status](https://travis-ci.org/kamon-io/kamon-http4s.svg?branch=master)](https://travis-ci.org/kamon-io/kamon-http4s)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/kamon-io/Kamon?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.kamon/kamon-http4s_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.kamon/kamon-http4s_2.12)
@@ -6,10 +6,7 @@
 
 ### Getting Started
 
-The `kamon-http4s` module ships with bytecode instrumentation that brings automatic traces and metrics to your 
-[http4s][4] based applications
-
-The <b>kamon-http4s</b> module requires you to start your application using the [Kamon Agent][2].
+The `kamon-http4s` module brings traces and metrics to your [http4s][4] based applications.
 
 Kamon <b>kamon-http4s</b> is currently available for Scala 2.11 and 2.12.
 
@@ -17,32 +14,47 @@ Supported releases and dependencies are shown below.
 
 | kamon-http4s  | status | jdk  | scala | http4s            
 |:------:|:------:|:----:|--------------:|-------
-|  1.0.0 | experimental | 1.8+ | 2.12 | 0.17.x
-
-| kamon-http4s  | status | jdk  | scala | http4s            
-|:------:|:------:|:----:|--------------:|-------
-|  1.0.0 | soon | 1.8+ | 2.12 | 0.18.x
+|  1.0.0 | stable | 1.8+ | 2.12 | 0.18.x
 
 To get started with SBT, simply add the following to your `build.sbt`
 file:
 
 ```scala
-libraryDependencies += "io.kamon" %% "kamon-http4s" % "1.0.0"
+libraryDependencies += "io.kamon" %% "kamon-http4s" % "1.0.1"
 ```
 
-#### Metrics and Tracing for http4s in 3 steps
+#### Metrics and Tracing for http4s in 2 steps
+
+### The Server
+
+```scala
+def serve[F[_]](ex: ExecutionContext)(implicit Effect: Effect[F], EC: ExecutionContext) : Stream[F, StreamApp.ExitCode] =
+    for {
+      _ <- Stream.eval(Sync[F].delay(println("Starting Google Service with Client")))
+      client <- Http1Client.stream[F]()
+      service = GoogleService.service[F](middleware.client.KamonSupport(client)) (1)
+      exitCode <- BlazeBuilder[F]
+        .bindHttp(Config.server.port, Config.server.interface)
+        .mountService(middleware.server.KamonSupport(service)) (2)
+        .serve
+    } yield exitCode
+```
+
+* __(1)__: The Kamon Middleware for the Client side.
+* __(2)__: The Kamon Middleware for the Server side.
 
 ### The Service
 
 ```scala
-object TheService {
-  val httpClient = PooledHttp1Client()
+object GoogleService {
+  def service[F[_]: Effect](c: Client[F]): HttpService[F] = {
+    val dsl = new Http4sDsl[F]{}
+    import dsl._
 
-  def service(): HttpService =
-    HttpService {
-      case GET -> Root / "ok" => Ok("ok")
-      case GET -> Root / "call-google" => 
-        Ok(httpClient.expect[String]("https://www.google.com.ar"))
+    HttpService[F] {
+      case GET -> Root / "call-google" =>
+        Ok(c.expect[String]("https://www.google.com.ar"))
+    }
   }
 }
 ```
@@ -59,20 +71,7 @@ libraryDependencies ++= Seq(
 )
 ```
 
-### Step 2: Setting up the [Kamon Agent][2]
-
-Here we will be running from SBT and just adding the [`sbt-javaagent`][1] plugin to the build is enough to get it
-working.
-
-```scala
-addSbtPlugin("com.lightbend.sbt" % "sbt-javaagent" % "0.1.4")
-
-enablePlugins(JavaAgent)
-
-javaAgents += "io.kamon" % "kamon-agent" % "0.0.8-experimental" % "runtime"
-```
-
-### Step 3: Start Reporting your Data
+### Step 2: Start Reporting your Data
 
 The last step in the process: start reporting your data! You can register as many reporters as you want by using the
 `Kamon.addReporter(...)` function:
@@ -113,6 +112,9 @@ Those are the `Server Metrics` metrics that we are gathering by default:
 * __active-requests__: The the number active requests.
 * __http-responses__: Response time by status code.
 * __abnormal-termination__: The number of abnormal requests termination.
+* __service-errors__: The number of service errors.
+* __headers-times__: The number of abnormal requests termination.
+* __http-request__: Request time by status code.
 
 Now you can go ahead, make your custom metrics and create your own dashboards!
 
