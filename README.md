@@ -14,7 +14,7 @@ Supported releases and dependencies are shown below.
 
 | kamon-http4s  | status | jdk  | scala | http4s            
 |:------:|:------:|:----:|--------------:|-------
-|  1.0.0 | stable | 1.8+ | 2.12 | 0.18.x
+|  1.0.1 | stable | 1.8+ | 2.11, 2.12 | 0.18.x
 
 To get started with SBT, simply add the following to your `build.sbt`
 file:
@@ -23,7 +23,7 @@ file:
 libraryDependencies += "io.kamon" %% "kamon-http4s" % "1.0.1"
 ```
 
-#### Metrics and Tracing for http4s in 2 steps
+## Metrics and Tracing for http4s in 2 steps
 
 ### The Server
 
@@ -62,12 +62,12 @@ object GoogleService {
 ### Step 1: Add the Kamon Libraries
 ```scala
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-core" % "1.0.0",
-  "io.kamon" %% "kamon-system-metrics" % "1.0.0",
+  "io.kamon" %% "kamon-core" % "1.0.1",
+  "io.kamon" %% "kamon-system-metrics" % "1.0.1",
   "io.kamon" %% "kamon-prometheus" % "1.0.0",
-  "io.kamon" %% "kamon-http4s" % "1.0.0",
-  "io.kamon" %% "kamon-zipkin" % "1.0.0",
-  "io.kamon" %% "kamon-jaeger" % "1.0.0"
+  "io.kamon" %% "kamon-http4s" % "1.0.1",
+  "io.kamon" %% "kamon-zipkin" % "1.0.1",
+  "io.kamon" %% "kamon-jaeger" % "1.0.1"
 )
 ```
 
@@ -91,7 +91,7 @@ values under the `kamon.prometheus` and `kamon.zipkin` configuration keys, respe
 #### Metrics
 
 All you need to do is [configure a scrape configuration in Prometheus][3]. The following snippet is a minimal
-example that shold work with the minimal server from the previous section.
+example that should work with the minimal server from the previous section.
 
 ```yaml
 A minimal Prometheus configuration snippet

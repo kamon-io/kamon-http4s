@@ -18,8 +18,8 @@ package kamon.http4s
 
 import cats.effect.{Effect, Sync}
 import com.typesafe.config.Config
-import kamon.Kamon
 import kamon.util.DynamicAccess
+import kamon.{Kamon, OnReconfigureHook}
 import org.http4s.Request
 
 object Http4s {
@@ -42,9 +42,11 @@ object Http4s {
     Kamon.config.getBoolean("kamon.http4s.add-http-status-code-as-metric-tag")
 
 
-  Kamon.onReconfigure((newConfig: Config) => {
-    nameGenerator = nameGeneratorFromConfig(newConfig)
-    addHttpStatusCodeAsMetricTag = addHttpStatusCodeAsMetricTagFromConfig(newConfig)
+  Kamon.onReconfigure(new OnReconfigureHook {
+    override def onReconfigure(newConfig: Config): Unit = {
+      nameGenerator = nameGeneratorFromConfig(newConfig)
+      addHttpStatusCodeAsMetricTag = addHttpStatusCodeAsMetricTagFromConfig(newConfig)
+    }
   })
 }
 
