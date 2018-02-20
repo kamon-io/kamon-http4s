@@ -18,34 +18,73 @@ package kamon.http4s
 
 import kamon.Kamon
 import kamon.metric.MeasurementUnit._
+import kamon.metric.{Histogram, HistogramMetric, RangeSampler}
 
 
 object Metrics {
 
   /**
-    * Metrics for http4s Server:
+    * General Metrics for http4s Server:
     *
-    * - abnormal-termination:The number of abnormal requests termination.
     * - active-requests: The the number active requests.
-    * - http-responses: Response time by status code.
+    * - abnormal-termination:The number of abnormal requests termination.
+    * - service-errors:The number of service errors.
+    * - headers-times:The number of abnormal requests termination.
     */
 
-  val  AbnormalTermination =  Kamon.histogram("abnormal-termination").refine(Map("component" -> "http4s-server"))
-  val  ActiveRequests =  Kamon.rangeSampler("active-requests").refine(Map("component" -> "http4s-server"))
+  case class GeneralMetrics(activeRequests: RangeSampler,
+                            abnormalTerminations: Histogram,
+                            serviceErrors: Histogram,
+                            headersTimes: Histogram)
 
-  object ResponseMetrics {
-    private val responseMetric = Kamon.histogram("http-responses", time.nanoseconds)
-
-    val Responses1xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "1xx"))
-    val Responses2xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "2xx"))
-    val Responses3xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "3xx"))
-    val Responses4xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "4xx"))
-    val Responses5xx = responseMetric.refine(Map("component" -> "http4s-server", "status-code" -> "5xx"))
+  object GeneralMetrics {
+    def apply(): GeneralMetrics = {
+      val generalTags = Map("component" -> "http4s-server")
+      new GeneralMetrics(
+        Kamon.rangeSampler("active-requests").refine(generalTags),
+        Kamon.histogram("abnormal-termination").refine(generalTags),
+        Kamon.histogram("service-errors").refine(generalTags),
+        Kamon.histogram("headers-times").refine(generalTags))
+    }
   }
+
+  /**
+    * Response Metrics for http4s Server:
+    *
+    * - http-responses: Response time by status code.
+    */
+  case class ResponseTimeMetrics(responseTimeMetric:HistogramMetric) {
+    def forStatusCode(statusCode: String): Histogram = {
+      val responseMetricsTags = Map("component" -> "http4s-server", "status-code" -> statusCode)
+      responseTimeMetric.refine(responseMetricsTags)
+    }
+  }
+
+  object ResponseTimeMetrics {
+    def apply(): ResponseTimeMetrics =
+      new ResponseTimeMetrics(Kamon.histogram("http-responses", time.nanoseconds))
+  }
+
+
+  /**
+    * Request Metrics for http4s Server:
+    *
+    * - http-request: Request time by status code.
+    */
+
+  case class RequestTimeMetrics(requestTimeMetric:HistogramMetric) {
+    def forMethod(method: String): Histogram = {
+      val requestMetricsTags = Map("component" -> "http4s-server", "method" -> method)
+      requestTimeMetric.refine(requestMetricsTags)
+    }
+  }
+
+  object RequestTimeMetrics {
+    def apply(): RequestTimeMetrics =
+      new RequestTimeMetrics(Kamon.histogram("http-request", time.nanoseconds))
+  }
+
+  case class ServiceMetrics(generalMetrics: GeneralMetrics,
+                            requestTimeMetrics: RequestTimeMetrics,
+                            responseTimeMetrics: ResponseTimeMetrics)
 }
-
-
-
-
-
-

@@ -16,18 +16,20 @@
 
 package kamon.http4s
 
+import cats.effect.IO
 import kamon.Kamon
 import kamon.context.Context
 import kamon.context.Context.create
+import kamon.http4s.middleware.client.KamonSupport
 import kamon.trace.Span.TagValue
 import kamon.trace.{Span, SpanCustomizer}
 import org.http4s.HttpService
 import org.http4s.client.Client
-import org.http4s.dsl._
+import org.http4s.dsl.impl.Root
+import org.http4s.dsl.io._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
-
 
 class ClientInstrumentationSpec extends WordSpec
   with Matchers
@@ -37,23 +39,24 @@ class ClientInstrumentationSpec extends WordSpec
   with SpanReporter
   with BeforeAndAfterAll {
 
-  val service = HttpService {
+  val service = HttpService[IO] {
       case GET -> Root / "tracing" / "ok" =>  Ok("ok")
       case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
       case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
       case GET -> Root / "tracing" / "throw-exception"  =>
         new RuntimeException
-      Ok()
+        Ok()
   }
 
-  val client: Client = Client.fromHttpService(service)
+
+  val client: Client[IO] = KamonSupport[IO](Client.fromHttpService[IO](service))
 
   "The Client instrumentation" should {
     "propagate the current context and generate a span inside an action and complete the ws request" in {
       val okSpan = Kamon.buildSpan("ok-operation-span").start()
 
       Kamon.withContext(create(Span.ContextKey, okSpan)) {
-        client.expect[String]("/tracing/ok").unsafeRun shouldBe "ok"
+        client.expect[String]("/tracing/ok").unsafeRunSync() shouldBe "ok"
       }
 
       eventually(timeout(2 seconds)) {
@@ -69,7 +72,7 @@ class ClientInstrumentationSpec extends WordSpec
       val notFoundSpan = Kamon.buildSpan("not-found-operation-span").start()
 
       Kamon.withContext(create(Span.ContextKey, notFoundSpan)) {
-        client.expect[String]("/tracing/not-found").unsafeAttemptRun().isLeft shouldBe true
+        client.expect[String]("/tracing/not-found").attempt.unsafeRunSync().isLeft shouldBe true
       }
 
       eventually(timeout(2 seconds)) {
@@ -85,7 +88,7 @@ class ClientInstrumentationSpec extends WordSpec
       val errorSpan = Kamon.buildSpan("error-operation-span").start()
 
       Kamon.withContext(create(Span.ContextKey, errorSpan)) {
-        client.expect[String]("/tracing/error").unsafeAttemptRun().isLeft shouldBe true
+        client.expect[String]("/tracing/error").attempt.unsafeRunSync().isLeft shouldBe true
       }
 
       eventually(timeout(2 seconds)) {
@@ -107,7 +110,7 @@ class ClientInstrumentationSpec extends WordSpec
         .withKey(SpanCustomizer.ContextKey, SpanCustomizer.forOperationName(customizedOperationName))
 
       Kamon.withContext(context) {
-        client.expect[String]("/tracing/ok").unsafeRun shouldBe "ok"
+        client.expect[String]("/tracing/ok").unsafeRunSync shouldBe "ok"
       }
 
       eventually(timeout(2 seconds)) {
