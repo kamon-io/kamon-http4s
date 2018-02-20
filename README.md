@@ -28,7 +28,7 @@ libraryDependencies += "io.kamon" %% "kamon-http4s" % "1.0.1"
 ### The Server
 
 ```scala
-def serve[F[_]](ex: ExecutionContext)(implicit Effect: Effect[F], EC: ExecutionContext) : Stream[F, StreamApp.ExitCode] =
+def serve[F[_]](implicit Effect: Effect[F], EC: ExecutionContext) : Stream[F, StreamApp.ExitCode] =
     for {
       _ <- Stream.eval(Sync[F].delay(println("Starting Google Service with Client")))
       client <- Http1Client.stream[F]()
@@ -40,8 +40,8 @@ def serve[F[_]](ex: ExecutionContext)(implicit Effect: Effect[F], EC: ExecutionC
     } yield exitCode
 ```
 
-* __(1)__: The Kamon Middleware for the Client side.
-* __(2)__: The Kamon Middleware for the Server side.
+* __(1)__: The Kamon [Middleware][5] for the `Client` side.
+* __(2)__: The Kamon [Middleware][6] for the `Server` side.
 
 ### The Service
 
@@ -136,8 +136,9 @@ Clicking on a span will bring up a details view where you can see all tags for t
 That's it, you are now collecting metrics and tracing information from a [http4s][4] application.
 
 
-[kamon-agent-0.0.8-experimental.jar]:https://mvnrepository.com/artifact/io.kamon/kamon-agent/0.0.8-experimental
 [1]: https://github.com/sbt/sbt-javaagent
 [2]: https://github.com/kamon-io/kamon-agent
 [3]: http://prometheus.io/docs/operating/configuration/#scrape-configurations-scrape_config
 [4]: http://http4s.org
+[5]: https://github.com/kamon-io/kamon-http4s/blob/master/src/main/scala/kamon/http4s/middleware/client/KamonSupport.scala
+[6]: https://github.com/kamon-io/kamon-http4s/blob/master/src/main/scala/kamon/http4s/middleware/server/KamonSupport.scala
