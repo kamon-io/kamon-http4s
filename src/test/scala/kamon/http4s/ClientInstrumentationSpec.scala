@@ -48,7 +48,6 @@ class ClientInstrumentationSpec extends WordSpec
         Ok()
   }
 
-
   val client: Client[IO] = KamonSupport[IO](Client.fromHttpService[IO](service))
 
   "The Client instrumentation" should {
@@ -61,10 +60,15 @@ class ClientInstrumentationSpec extends WordSpec
 
       eventually(timeout(2 seconds)) {
         val span = reporter.nextSpan().value
+        val spanTags = stringTag(span) _
+
         span.operationName shouldBe "None/tracing/ok"
-        span.tags("span.kind") shouldBe TagValue.String("client")
-        span.tags("http.method") shouldBe TagValue.String("GET")
+        spanTags("span.kind") shouldBe "client"
+        spanTags("component") shouldBe "http4s.client"
+        spanTags("http.method") shouldBe "GET"
         span.tags("http.status_code") shouldBe TagValue.Number(200)
+
+        okSpan.context.spanID == span.context.parentID
       }
     }
 
@@ -77,10 +81,15 @@ class ClientInstrumentationSpec extends WordSpec
 
       eventually(timeout(2 seconds)) {
         val span = reporter.nextSpan().value
+        val spanTags = stringTag(span) _
+
         span.operationName shouldBe "not-found"
-        span.tags("span.kind") shouldBe TagValue.String("client")
-        span.tags("http.method") shouldBe TagValue.String("GET")
+        spanTags("span.kind") shouldBe "client"
+        spanTags("component") shouldBe "http4s.client"
+        spanTags("http.method") shouldBe "GET"
         span.tags("http.status_code") shouldBe TagValue.Number(404)
+
+        notFoundSpan.context.spanID == span.context.parentID
       }
     }
 
@@ -93,11 +102,16 @@ class ClientInstrumentationSpec extends WordSpec
 
       eventually(timeout(2 seconds)) {
         val span = reporter.nextSpan().value
+        val spanTags = stringTag(span) _
+
         span.operationName shouldBe "None/tracing/error"
-        span.tags("span.kind") shouldBe TagValue.String("client")
-        span.tags("http.method") shouldBe TagValue.String("GET")
+        spanTags("span.kind") shouldBe "client"
+        spanTags("component") shouldBe "http4s.client"
+        spanTags("http.method") shouldBe "GET"
         span.tags("error") shouldBe TagValue.True
         span.tags("http.status_code") shouldBe TagValue.Number(500)
+
+        errorSpan.context.spanID == span.context.parentID
       }
     }
 
@@ -115,12 +129,21 @@ class ClientInstrumentationSpec extends WordSpec
 
       eventually(timeout(2 seconds)) {
         val span = reporter.nextSpan().value
+        val spanTags = stringTag(span) _
+
         span.operationName shouldBe customizedOperationName
-        span.tags("span.kind") shouldBe TagValue.String("client")
-        span.tags("http.method") shouldBe TagValue.String("GET")
+        spanTags("span.kind") shouldBe "client"
+        spanTags("component") shouldBe "http4s.client"
+        spanTags("http.method") shouldBe "GET"
         span.tags("http.status_code") shouldBe TagValue.Number(200)
+
+        okSpan.context.spanID == span.context.parentID
       }
     }
+  }
+
+  def stringTag(span: Span.FinishedSpan)(tag: String): String = {
+    span.tags(tag).asInstanceOf[TagValue.String].string
   }
 
   override protected def beforeAll(): Unit =

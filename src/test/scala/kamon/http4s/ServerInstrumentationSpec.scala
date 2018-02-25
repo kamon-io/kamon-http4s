@@ -76,9 +76,12 @@ class ServerInstrumentationSpec extends WordSpec
 
       eventually(timeout(2 seconds)) {
         val span = reporter.nextSpan().value
+        val spanTags = stringTag(span) _
+
         span.operationName shouldBe "tracing.ok.get"
-        span.tags("span.kind") shouldBe TagValue.String("server")
-        span.tags("http.method") shouldBe TagValue.String("GET")
+        spanTags("span.kind") shouldBe "server"
+        spanTags("component") shouldBe "http4s.server"
+        spanTags("http.method") shouldBe "GET"
         span.tags("http.status_code") shouldBe TagValue.Number(200)
       }
     }
@@ -94,9 +97,12 @@ class ServerInstrumentationSpec extends WordSpec
 
       eventually(timeout(2 seconds)) {
         val span = reporter.nextSpan().value
+        val spanTags = stringTag(span) _
+
         span.operationName shouldBe "not-found"
-        span.tags("span.kind") shouldBe TagValue.String("server")
-        span.tags("http.method") shouldBe TagValue.String("GET")
+        spanTags("span.kind") shouldBe "server"
+        spanTags("component") shouldBe "http4s.server"
+        spanTags("http.method") shouldBe "GET"
         span.tags("http.status_code") shouldBe TagValue.Number(404)
       }
     }
@@ -112,13 +118,20 @@ class ServerInstrumentationSpec extends WordSpec
 
       eventually(timeout(2 seconds)) {
         val span = reporter.nextSpan().value
+        val spanTags = stringTag(span) _
+
         span.operationName shouldBe "tracing.error.get"
-        span.tags("span.kind") shouldBe TagValue.String("server")
-        span.tags("http.method") shouldBe TagValue.String("GET")
+        spanTags("span.kind") shouldBe "server"
+        spanTags("component") shouldBe "http4s.server"
+        spanTags("http.method") shouldBe "GET"
         span.tags("error") shouldBe TagValue.True
         span.tags("http.status_code") shouldBe TagValue.Number(500)
       }
     }
+  }
+
+  def stringTag(span: Span.FinishedSpan)(tag: String): String = {
+    span.tags(tag).asInstanceOf[TagValue.String].string
   }
 
   override protected def beforeAll(): Unit =

@@ -63,7 +63,6 @@ class HttpMetricsSpec extends WordSpec
       .getLines
       .mkString
 
-
   val parallelRequestExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(10))
 
   "The HttpMetrics" should {
