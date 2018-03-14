@@ -62,7 +62,7 @@ class ClientInstrumentationSpec extends WordSpec
         val span = reporter.nextSpan().value
         val spanTags = stringTag(span) _
 
-        span.operationName shouldBe "None/tracing/ok"
+        span.operationName shouldBe "/tracing/ok"
         spanTags("span.kind") shouldBe "client"
         spanTags("component") shouldBe "http4s.client"
         spanTags("http.method") shouldBe "GET"
@@ -104,7 +104,7 @@ class ClientInstrumentationSpec extends WordSpec
         val span = reporter.nextSpan().value
         val spanTags = stringTag(span) _
 
-        span.operationName shouldBe "None/tracing/error"
+        span.operationName shouldBe "/tracing/error"
         spanTags("span.kind") shouldBe "client"
         spanTags("component") shouldBe "http4s.client"
         spanTags("http.method") shouldBe "GET"

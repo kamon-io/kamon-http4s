@@ -65,7 +65,7 @@ class DefaultNameGenerator extends NameGenerator {
   private val normalizePattern = """\$([^<]+)<[^>]+>""".r
 
   override def generateHttpClientOperationName[F[_]](request: Request[F]): String = {
-    s"${request.uri.authority}${request.uri.path}"
+    request.uri.authority.map(authority => s"$authority${request.uri.path}").getOrElse(request.uri.path)
   }
 
   override def generateOperationName[F[_]](request: Request[F]): String = {

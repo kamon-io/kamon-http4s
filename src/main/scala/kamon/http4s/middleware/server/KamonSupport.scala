@@ -41,8 +41,8 @@ object KamonSupport {
   }
 
   private def kamonService[F[_]](serviceMetrics: ServiceMetrics, service: HttpService[F])
-                                             (req: Request[F])
-                                             (implicit F: Sync[F], L: Log[F]): OptionT[F, Response[F]] = OptionT {
+                                (req: Request[F])
+                                (implicit F: Sync[F], L: Log[F]): OptionT[F, Response[F]] = OptionT {
     for {
       now <- F.delay(Kamon.clock().instant())
       serverSpan <- createSpan(req)
@@ -63,7 +63,7 @@ object KamonSupport {
     for {
       elapsed <- EitherT.liftF[F, Throwable, Long](F.delay(start.until(Kamon.clock().instant(), ChronoUnit.NANOS)))
       respOpt <- EitherT(e.bitraverse[F, Throwable, Option[Response[F]]](
-        manageServiceErrors(method, elapsed, serviceMetrics).as(_),
+        manageServiceErrors(method, elapsed, serviceMetrics, serverSpan).as(_),
         _.map(manageResponse(method, start, elapsed, serviceMetrics, serverSpan)).pure[F]
       ))
     } yield respOpt
@@ -121,6 +121,13 @@ object KamonSupport {
       handleStatusCode(serverSpan, status.code) *> F.delay(serverSpan.finish(endTimestamp))
 
 
+  private def finishSpanWithError[F[_]](serverSpan:Span,
+                                        endTimestamp: Instant)
+                                       (implicit F: Sync[F]): F[Unit] =
+    F.delay(serverSpan.addError("abnormal termination")) *>
+      F.delay(serverSpan.finish(endTimestamp))
+
+
   private def handleStatusCode[F[_]](span: Span, code:Int)(implicit F: Sync[F]):F[Unit] =
     F.delay {
       if (code < 500) {
@@ -130,10 +137,15 @@ object KamonSupport {
       }
     }
 
-  private def manageServiceErrors[F[_]](m: Method, elapsed: Long, serviceMetrics: ServiceMetrics)
+  private def manageServiceErrors[F[_]](m: Method,
+                                        elapsed: Long,
+                                        serviceMetrics: ServiceMetrics,
+                                        spanServer:Span)
                                        (implicit F: Sync[F]): F[Unit] =
+
     requestMetrics(serviceMetrics.requestTimeMetrics, serviceMetrics.generalMetrics.activeRequests)(m,elapsed) *>
-      incrementCounts(serviceMetrics.generalMetrics.serviceErrors, elapsed)
+      incrementCounts(serviceMetrics.generalMetrics.serviceErrors, elapsed) *>
+        finishSpanWithError(spanServer, Kamon.clock().instant())
 
   private def handleUnmatched[F[_]](serviceMetrics: ServiceMetrics)
                                    (implicit F: Sync[F]): F[Option[Response[F]]] =
