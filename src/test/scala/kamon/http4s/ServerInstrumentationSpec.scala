@@ -20,8 +20,6 @@ import java.net.URL
 import java.util.concurrent.Executors
 
 import cats.effect.IO
-import kamon.Kamon
-import kamon.context.Context.create
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.trace.Span
 import kamon.trace.Span.TagValue
@@ -68,11 +66,7 @@ class ServerInstrumentationSpec extends WordSpec
 
   "The Server  instrumentation" should {
     "propagate the current context and respond to the ok action" in {
-      val okSpan = Kamon.buildSpan("ok-operation-span").start()
-
-      Kamon.withContext(create(Span.ContextKey, okSpan)) {
-        get("/tracing/ok") should startWith("ok")
-      }
+      get("/tracing/ok") should startWith("ok")
 
       eventually(timeout(2 seconds)) {
         val span = reporter.nextSpan().value
@@ -87,12 +81,8 @@ class ServerInstrumentationSpec extends WordSpec
     }
 
     "propagate the current context and respond to the not-found action" in {
-      val notFoundSpan = Kamon.buildSpan("not-found-operation-span").start()
-
-      Kamon.withContext(create(Span.ContextKey, notFoundSpan)) {
-        intercept[Exception] {
-          get("/tracing/not-found") should startWith("not-found")
-        }
+      intercept[Exception] {
+        get("/tracing/not-found") should startWith("not-found")
       }
 
       eventually(timeout(2 seconds)) {
@@ -108,12 +98,8 @@ class ServerInstrumentationSpec extends WordSpec
     }
 
     "propagate the current context and respond to the error action" in {
-      val errorSpan = Kamon.buildSpan("error-operation-span").start()
-
-      Kamon.withContext(create(Span.ContextKey, errorSpan)) {
-        intercept[Exception] {
-          get("/tracing/error") should startWith("error")
-        }
+      intercept[Exception] {
+        get("/tracing/error") should startWith("error")
       }
 
       eventually(timeout(2 seconds)) {
