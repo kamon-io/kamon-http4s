@@ -41,16 +41,17 @@ object KamonSupport {
   }
 
   private def kamonService[F[_]](serviceMetrics: ServiceMetrics, service: HttpService[F])
-                                (req: Request[F])
+                                (request: Request[F])
                                 (implicit F: Sync[F], L: Log[F]): OptionT[F, Response[F]] = OptionT {
     for {
       now <- F.delay(Kamon.clock().instant())
-      serverSpan <- createSpan(req)
+      incomingContext <- decodeContext(request)
+      serverSpan <- createSpan(request, incomingContext)
       _ <- F.delay(serviceMetrics.generalMetrics.activeRequests.increment())
-      scope <- F.delay(Kamon.storeContext(Context.create(Span.ContextKey, serverSpan)))
-      e <- service(req).value.attempt
+      scope <- F.delay(Kamon.storeContext(incomingContext.withKey(Span.ContextKey, serverSpan)))
+      e <- service(request).value.attempt
       _ <- F.delay(scope.close())
-      resp <- kamonServiceHandler(req.method, now, serviceMetrics, serverSpan, e)
+      resp <- kamonServiceHandler(request.method, now, serviceMetrics, serverSpan, e)
     } yield resp
   }
 
@@ -98,10 +99,10 @@ object KamonSupport {
     response.copy(body = newBody)
   }
 
-  private def createSpan[F[_]](request: Request[F])
+  private def createSpan[F[_]](request: Request[F],
+                               incomingContext:Context)
                               (implicit F: Sync[F]): F[Span] = {
     for {
-      incomingContext <- decodeContext(request)
       operationName <- kamon.http4s.Http4s.generateOperationName(request)
       serverSpan <- F.delay(Kamon.buildSpan(operationName)
         .asChildOf(incomingContext.get(Span.ContextKey))
