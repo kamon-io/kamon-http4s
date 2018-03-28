@@ -26,7 +26,7 @@ import fs2.Stream
 import kamon.Kamon
 import kamon.context.Context
 import kamon.http4s.Metrics.{GeneralMetrics, RequestTimeMetrics, ResponseTimeMetrics, ServiceMetrics}
-import kamon.http4s.{Log, StatusCodes, decodeContext}
+import kamon.http4s.{Http4s, Log, StatusCodes, decodeContext}
 import kamon.metric.{Histogram, RangeSampler}
 import kamon.trace.Span
 import org.http4s.{HttpService, Method, Request, Response, Status}
@@ -118,8 +118,10 @@ object KamonSupport {
                                status: Status,
                                endTimestamp: Instant)
                               (implicit F: Sync[F]): F[Unit] =
-    F.delay(serverSpan.tag("http.status_code", status.code)) *>
-      handleStatusCode(serverSpan, status.code) *> F.delay(serverSpan.finish(endTimestamp))
+    F.delay {
+      if (Http4s.addHttpStatusCodeAsMetricTag) serverSpan.tagMetric("http.status_code", status.code.toString)
+      else serverSpan.tag("http.status_code", status.code)
+    } *> handleStatusCode(serverSpan, status.code) *> F.delay(serverSpan.finish(endTimestamp))
 
 
   private def finishSpanWithError[F[_]](serverSpan:Span,
