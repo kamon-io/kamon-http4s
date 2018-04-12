@@ -54,8 +54,10 @@ object KamonSupport {
       spanBuilder <- createSpanBuilder(clientSpan, ctx)(request)
       span <- createSpan(ctx, spanBuilder)
       newCtx <- newContext(ctx, span)
+      scope <- F.delay(Kamon.storeContext(newCtx))
       encodedRequest <- encodeContext(newCtx)(request)
       response <- service(encodedRequest)
+      _ <- F.delay(scope.close())
       _ <- responseHandler(span, response)
     } yield response
 
