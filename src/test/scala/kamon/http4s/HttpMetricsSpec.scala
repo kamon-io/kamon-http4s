@@ -67,7 +67,7 @@ class HttpMetricsSpec extends WordSpec
 
   "The HttpMetrics" should {
     "track the total of active requests" in {
-      for(_ <- 1 to 10) yield  {
+      for(_ <- 1 to 100) yield  {
         Future { get("/tracing/ok") }(parallelRequestExecutor)
       }
 
@@ -78,6 +78,7 @@ class HttpMetricsSpec extends WordSpec
       eventually(timeout(2 seconds)) {
         GeneralMetrics().activeRequests.distribution().min shouldBe 0L
       }
+
       reporter.clear()
     }
 
