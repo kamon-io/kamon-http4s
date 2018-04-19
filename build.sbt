@@ -16,9 +16,9 @@
 val kamonCore         = "io.kamon"    %% "kamon-core"             % "1.1.2"
 val kamonTestkit      = "io.kamon"    %% "kamon-testkit"          % "1.1.2"
 
-val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.18.8"
-val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.18.8"
-val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.18.8"
+val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.18.9"
+val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.18.9"
+val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.18.9"
 
 
 lazy val root = (project in file("."))
