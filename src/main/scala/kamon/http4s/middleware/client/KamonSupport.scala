@@ -40,8 +40,7 @@ object KamonSupport {
     for {
       ctx <- F.delay(Kamon.currentContext())
       clientSpan <- F.delay(ctx.get(Span.ContextKey))
-      k <- if (clientSpan.isEmpty()) service(request)
-           else kamonService(service)(request)(clientSpan)(ctx)
+      k <- kamonService(service)(request)(clientSpan)(ctx)
       } yield k
   }
 
@@ -98,7 +97,7 @@ object KamonSupport {
         .asChildOf(clientSpan)
         .withMetricTag("span.kind", "client")
         .withMetricTag("component", "http4s.client")
-        .withTag("http.method", request.method.name)
+        .withMetricTag("http.method", request.method.name)
         .withTag("http.url", request.uri.renderString))
     } yield spanBuilder
 }
