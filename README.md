@@ -135,6 +135,9 @@ Clicking on a span will bring up a details view where you can see all tags for t
 
 That's it, you are now collecting metrics and tracing information from a [http4s][4] application.
 
+### Useful links:
+
+[Example of how to correctly configure the execution context] [7] by @cmcmteixeira 
 
 [1]: https://github.com/sbt/sbt-javaagent
 [2]: https://github.com/kamon-io/kamon-agent
@@ -142,3 +145,4 @@ That's it, you are now collecting metrics and tracing information from a [http4s
 [4]: http://http4s.org
 [5]: https://github.com/kamon-io/kamon-http4s/blob/master/src/main/scala/kamon/http4s/middleware/client/KamonSupport.scala
 [6]: https://github.com/kamon-io/kamon-http4s/blob/master/src/main/scala/kamon/http4s/middleware/server/KamonSupport.scala
+[7]: https://github.com/cmcmteixeira/http4s-traceid

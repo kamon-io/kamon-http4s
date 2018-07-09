@@ -13,8 +13,8 @@
  * =========================================================================================
  */
 
-val kamonCore         = "io.kamon"    %% "kamon-core"             % "1.1.2"
-val kamonTestkit      = "io.kamon"    %% "kamon-testkit"          % "1.1.2"
+val kamonCore         = "io.kamon"    %% "kamon-core"             % "1.1.3"
+val kamonTestkit      = "io.kamon"    %% "kamon-testkit"          % "1.1.3"
 
 val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.18.9"
 val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.18.9"
