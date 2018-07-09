@@ -55,8 +55,14 @@ object KamonSupport {
       newCtx <- newContext(ctx, span)
       scope <- F.delay(Kamon.storeContext(newCtx))
       encodedRequest <- encodeContext(newCtx)(request)
-      response <- service(encodedRequest)
+      result <- service(encodedRequest).attempt
       _ <- F.delay(scope.close())
+      response <- result match {
+        case Left(e) => F
+            .delay(span.finish())
+            .flatMap[DisposableResponse[F]](_ => F.raiseError(e))
+        case Right(response) => F.pure(response)
+      }
       _ <- responseHandler(span, response)
     } yield response
 

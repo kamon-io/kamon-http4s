@@ -16,6 +16,9 @@
 
 package kamon.http4s
 
+import java.net.ConnectException
+
+import cats.data.Kleisli
 import cats.effect.IO
 import kamon.Kamon
 import kamon.context.Context
@@ -23,8 +26,8 @@ import kamon.context.Context.create
 import kamon.http4s.middleware.client.KamonSupport
 import kamon.trace.Span.TagValue
 import kamon.trace.{Span, SpanCustomizer}
-import org.http4s.HttpService
-import org.http4s.client.Client
+import org.http4s.{HttpService, Request}
+import org.http4s.client.{Client, DisposableResponse}
 import org.http4s.dsl.impl.Root
 import org.http4s.dsl.io._
 import org.scalatest.concurrent.Eventually
@@ -67,6 +70,31 @@ class ClientInstrumentationSpec extends WordSpec
         spanTags("component") shouldBe "http4s.client"
         spanTags("http.method") shouldBe "GET"
         span.tags("http.status_code") shouldBe TagValue.Number(200)
+
+        okSpan.context.spanID == span.context.parentID
+      }
+    }
+
+    "close and finish a span even if an exception is thrown by the client" in {
+      val okSpan = Kamon.buildSpan("client exception").start()
+      val client: Client[IO] = KamonSupport[IO](
+        Client(Kleisli(_ => IO.raiseError(new ConnectException("Connection Refused."))), IO.unit)
+      )
+
+      Kamon.withContext(create(Span.ContextKey, okSpan)) {
+        a[ConnectException] should be thrownBy {
+          client.expect[String]("/tracing/ok").unsafeRunSync()
+        }
+      }
+
+      eventually(timeout(2 seconds)) {
+        val span = reporter.nextSpan().value
+        val spanTags = stringTag(span) _
+
+        span.operationName shouldBe "/tracing/ok"
+        spanTags("span.kind") shouldBe "client"
+        spanTags("component") shouldBe "http4s.client"
+        spanTags("http.method") shouldBe "GET"
 
         okSpan.context.spanID == span.context.parentID
       }
