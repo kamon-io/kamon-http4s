@@ -137,7 +137,7 @@ That's it, you are now collecting metrics and tracing information from a [http4s
 
 ### Useful links:
 
-[Example of how to correctly configure the execution context] [7] by @cmcmteixeira 
+[Example of how to correctly configure the execution context][7] by @cmcmteixeira 
 
 [1]: https://github.com/sbt/sbt-javaagent
 [2]: https://github.com/kamon-io/kamon-agent
