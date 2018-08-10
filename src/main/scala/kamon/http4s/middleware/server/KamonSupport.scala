@@ -29,18 +29,18 @@ import kamon.http4s.Metrics.{GeneralMetrics, RequestTimeMetrics, ResponseTimeMet
 import kamon.http4s.{Http4s, Log, StatusCodes, decodeContext}
 import kamon.metric.{Histogram, RangeSampler}
 import kamon.trace.Span
-import org.http4s.{HttpService, Method, Request, Response, Status}
+import org.http4s.{HttpRoutes, Method, Request, Response, Status}
 
 object KamonSupport {
 
-  def apply[F[_]:Sync](service: HttpService[F]):HttpService[F] = {
+  def apply[F[_]:Sync](service: HttpRoutes[F]):HttpRoutes[F] = {
     import Log._
 
     val serviceMetrics = ServiceMetrics(GeneralMetrics(), RequestTimeMetrics(), ResponseTimeMetrics())
     Kleisli(kamonService[F](serviceMetrics, service)(_))
   }
 
-  private def kamonService[F[_]](serviceMetrics: ServiceMetrics, service: HttpService[F])
+  private def kamonService[F[_]](serviceMetrics: ServiceMetrics, service: HttpRoutes[F])
                                 (request: Request[F])
                                 (implicit F: Sync[F], L: Log[F]): OptionT[F, Response[F]] = OptionT {
     for {

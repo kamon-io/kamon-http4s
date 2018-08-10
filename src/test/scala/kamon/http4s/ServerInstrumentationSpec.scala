@@ -23,8 +23,7 @@ import cats.effect.IO
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.trace.Span
 import kamon.trace.Span.TagValue
-import org.http4s.HttpService
-import org.http4s.dsl.impl.Root
+import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
 import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeBuilder
@@ -33,8 +32,8 @@ import org.scalatest.time.SpanSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source
-
 
 class ServerInstrumentationSpec extends WordSpec
   with Matchers
@@ -48,7 +47,7 @@ class ServerInstrumentationSpec extends WordSpec
     BlazeBuilder[IO]
       .bindAny()
       .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2)))
-      .mountService(KamonSupport(HttpService {
+      .mountService(KamonSupport(HttpRoutes.of[IO] {
           case GET -> Root / "tracing" / "ok" =>  Ok("ok")
           case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
           case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
