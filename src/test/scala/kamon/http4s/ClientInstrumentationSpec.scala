@@ -26,9 +26,8 @@ import kamon.context.Context.create
 import kamon.http4s.middleware.client.KamonSupport
 import kamon.trace.Span.TagValue
 import kamon.trace.{Span, SpanCustomizer}
-import org.http4s.{HttpService, Request}
-import org.http4s.client.{Client, DisposableResponse}
-import org.http4s.dsl.impl.Root
+import org.http4s.HttpRoutes
+import org.http4s.client._
 import org.http4s.dsl.io._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
@@ -42,7 +41,7 @@ class ClientInstrumentationSpec extends WordSpec
   with SpanReporter
   with BeforeAndAfterAll {
 
-  val service = HttpService[IO] {
+  val service = HttpRoutes.of[IO] {
       case GET -> Root / "tracing" / "ok" =>  Ok("ok")
       case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
       case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
@@ -51,7 +50,7 @@ class ClientInstrumentationSpec extends WordSpec
         Ok()
   }
 
-  val client: Client[IO] = KamonSupport[IO](Client.fromHttpService[IO](service))
+  val client: Client[IO] = KamonSupport[IO](Client.fromHttpApp[IO](service.orNotFound))
 
   "The Client instrumentation" should {
     "propagate the current context and generate a span inside an action and complete the ws request" in {

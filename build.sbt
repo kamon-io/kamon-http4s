@@ -16,16 +16,16 @@
 val kamonCore         = "io.kamon"    %% "kamon-core"             % "1.1.3"
 val kamonTestkit      = "io.kamon"    %% "kamon-testkit"          % "1.1.3"
 
-val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.18.9"
-val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.18.9"
-val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.18.9"
+val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.19.0-M1"
+val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.19.0-M1"
+val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.19.0-M1"
 
 
 lazy val root = (project in file("."))
   .settings(Seq(
       name := "kamon-http4s",
-      scalaVersion := "2.12.5",
-      crossScalaVersions := Seq("2.11.12", "2.12.5")))
+      scalaVersion := "2.12.6",
+      crossScalaVersions := Seq("2.11.12", "2.12.6")))
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
   .settings(scalacOptions ++= Seq("-Ypartial-unification", "-language:higherKinds"))
