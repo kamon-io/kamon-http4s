@@ -56,7 +56,6 @@ object KamonSupport {
       scope <- F.delay(Kamon.storeContext(newCtx))
       encodedRequest <- encodeContext(newCtx)(request)
       result <- service(encodedRequest).attempt
-      _ <- F.delay(scope.close())
       response <- result match {
         case Left(e) => F
             .delay(span.finish())
@@ -64,6 +63,7 @@ object KamonSupport {
         case Right(response) => F.pure(response)
       }
       _ <- responseHandler(span, response)
+      _ <- F.delay(scope.close())
     } yield response
 
   private def newContext[F[_]](ctx: Context, span: Span)
