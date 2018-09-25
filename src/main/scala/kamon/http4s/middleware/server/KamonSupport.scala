@@ -50,8 +50,8 @@ object KamonSupport {
       _ <- F.delay(serviceMetrics.generalMetrics.activeRequests.increment())
       scope <- F.delay(Kamon.storeContext(incomingContext.withKey(Span.ContextKey, serverSpan)))
       e <- service(request).value.attempt
-      _ <- F.delay(scope.close())
       resp <- kamonServiceHandler(request.method, now, serviceMetrics, serverSpan, e)
+      _ <- F.delay(scope.close())
     } yield resp
   }
 
