@@ -33,7 +33,7 @@ import org.http4s.{HttpRoutes, Method, Request, Response, Status}
 
 object KamonSupport {
 
-  def apply[F[_]:Sync](service: HttpRoutes[F]):HttpRoutes[F] = {
+  def apply[F[_]: Sync](service: HttpRoutes[F]): HttpRoutes[F] = {
     import Log._
 
     val serviceMetrics = ServiceMetrics(GeneralMetrics(), RequestTimeMetrics(), ResponseTimeMetrics())
@@ -62,15 +62,18 @@ object KamonSupport {
                                         e: Either[Throwable, Option[Response[F]]])
                                        (implicit F: Sync[F], L: Log[F]): F[Option[Response[F]]] = {
     for {
-      elapsed <- EitherT.liftF[F, Throwable, Long](F.delay(start.until(Kamon.clock().instant(), ChronoUnit.NANOS)))
-      respOpt <- EitherT(e.bitraverse[F, Throwable, Option[Response[F]]](
-        manageServiceErrors(method, elapsed, serviceMetrics, serverSpan).as(_),
-        _.map(manageResponse(method, start, elapsed, serviceMetrics, serverSpan)).pure[F]
-      ))
+      elapsed <- F.delay(start.until(Kamon.clock().instant(), ChronoUnit.NANOS))
+      respOpt <- e match {
+        case Left(e) =>
+          manageServiceErrors(method, elapsed, serviceMetrics, serverSpan) *> F.raiseError(e)
+        case Right(None) =>
+          handleUnmatched(serviceMetrics).as(Option.empty[Response[F]])
+        case Right(Some(response)) =>
+          manageResponse(method, start, elapsed, serviceMetrics, serverSpan)(response)
+            .map(_.some)
+      }
     } yield respOpt
-  }.fold(
-    Sync[F].raiseError[Option[Response[F]]],_.fold(handleUnmatched(serviceMetrics))(handleMatched)
-  ).flatten
+  }
 
   private def manageResponse[F[_]](m: Method,
                                    start: Instant,
@@ -78,7 +81,14 @@ object KamonSupport {
                                    serviceMetrics: ServiceMetrics,
                                    spanServer:Span)
                                    (response: Response[F])
-                                   (implicit F: Sync[F], L: Log[F]): Response[F] = {
+                                   (implicit F: Sync[F], L: Log[F]): F[Response[F]] = {
+    val incrementErrors: F[Unit] = {
+      incrementCounts(
+        serviceMetrics.generalMetrics.abnormalTerminations,
+        elapsedInit
+      )
+    }
+
     val newBody = response.body
       .onFinalize {
         for {
@@ -91,12 +101,15 @@ object KamonSupport {
           _ <- L.debug(s"HTTP Response Time: $elapsed ns")
         } yield ()
       }
-      .handleErrorWith(
-        e =>
-          Stream.eval(
-            incrementCounts(serviceMetrics.generalMetrics.abnormalTerminations, elapsedInit)) *>
-            Stream.raiseError[Byte](e))
-    response.copy(body = newBody)
+
+    val errorReportedBody = newBody.handleErrorWith[F, Byte](
+      e => Stream.eval(incrementErrors) *> Stream.raiseError[F](e)
+    )
+
+    if(response.status.isSuccess)
+      response.withBodyStream(body = errorReportedBody).pure[F]
+    else
+      incrementErrors.as(response.withBodyStream(newBody))
   }
 
   private def createSpan[F[_]](request: Request[F],
@@ -151,8 +164,8 @@ object KamonSupport {
         finishSpanWithError(spanServer, Kamon.clock().instant())
 
   private def handleUnmatched[F[_]](serviceMetrics: ServiceMetrics)
-                                   (implicit F: Sync[F]): F[Option[Response[F]]] =
-    F.delay(serviceMetrics.generalMetrics.activeRequests.decrement()).as(Option.empty[Response[F]])
+                                   (implicit F: Sync[F]): F[Unit] =
+    F.delay(serviceMetrics.generalMetrics.activeRequests.decrement())
 
   private def handleMatched[F[_]: Sync](resp: Response[F]): F[Option[Response[F]]] =
     resp.some.pure[F]

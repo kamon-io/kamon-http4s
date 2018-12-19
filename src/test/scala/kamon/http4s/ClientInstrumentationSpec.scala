@@ -18,17 +18,17 @@ package kamon.http4s
 
 import java.net.ConnectException
 
-import cats.data.Kleisli
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import kamon.Kamon
 import kamon.context.Context
 import kamon.context.Context.create
 import kamon.http4s.middleware.client.KamonSupport
 import kamon.trace.Span.TagValue
 import kamon.trace.{Span, SpanCustomizer}
-import org.http4s.HttpRoutes
+import org.http4s.{HttpRoutes, Response}
 import org.http4s.client._
 import org.http4s.dsl.io._
+import org.http4s.implicits._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
@@ -45,9 +45,6 @@ class ClientInstrumentationSpec extends WordSpec
       case GET -> Root / "tracing" / "ok" =>  Ok("ok")
       case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
       case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
-      case GET -> Root / "tracing" / "throw-exception"  =>
-        new RuntimeException
-        Ok()
   }
 
   val client: Client[IO] = KamonSupport[IO](Client.fromHttpApp[IO](service.orNotFound))
@@ -77,7 +74,7 @@ class ClientInstrumentationSpec extends WordSpec
     "close and finish a span even if an exception is thrown by the client" in {
       val okSpan = Kamon.buildSpan("client exception").start()
       val client: Client[IO] = KamonSupport[IO](
-        Client(Kleisli(_ => IO.raiseError(new ConnectException("Connection Refused."))), IO.unit)
+        Client(_ => Resource.liftF(IO.raiseError[Response[IO]](new ConnectException("Connection Refused."))))
       )
 
       Kamon.withContext(create(Span.ContextKey, okSpan)) {
@@ -178,6 +175,5 @@ class ClientInstrumentationSpec extends WordSpec
 
   override def afterAll: Unit = {
     stop()
-    client.shutdownNow()
   }
 }

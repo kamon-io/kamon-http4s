@@ -16,25 +16,23 @@
 
 package kamon.http4s
 
-import java.net.URL
-import java.util.concurrent.Executors
-
-import cats.effect.IO
+import cats.effect._
 import kamon.http4s.Metrics.{GeneralMetrics, ResponseTimeMetrics}
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.testkit.MetricInspection
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
 import org.http4s.server.Server
-import org.http4s.server.blaze.BlazeBuilder
+import org.http4s.server.blaze.BlazeServerBuilder
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
+import org.scalatest.{Matchers, OptionValues, WordSpec}
+import cats.implicits._
+import org.http4s.client.blaze.BlazeClientBuilder
+import org.http4s.client.Client
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.io.Source
-
+import scala.concurrent.ExecutionContext
+import org.http4s.implicits._
 
 class HttpMetricsSpec extends WordSpec
   with Matchers
@@ -42,70 +40,77 @@ class HttpMetricsSpec extends WordSpec
   with SpanSugar
   with MetricInspection
   with OptionValues
-  with SpanReporter
-  with BeforeAndAfterAll {
+  with SpanReporter {
 
-  val server: Server[IO]=
-    BlazeBuilder[IO]
+  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+  implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
+
+  val srv =
+    BlazeServerBuilder[IO]
       .bindAny()
-      .withExecutionContext(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2)))
-      .mountService(KamonSupport(HttpRoutes.of[IO] {
+      .withHttpApp(KamonSupport(HttpRoutes.of[IO] {
         case GET -> Root / "tracing" / "ok" =>  Ok("ok")
         case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
         case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
-      }))
-      .start
-      .unsafeRunSync()
+      }).orNotFound)
+      .resource
 
-  private def get(path: String): String =
-    Source
-      .fromURL(new URL(s"http://127.0.0.1:${server.address.getPort}$path"))
-      .getLines
-      .mkString
+  val client =
+    BlazeClientBuilder[IO](ExecutionContext.global).withMaxTotalConnections(10).resource
 
-  val parallelRequestExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(10))
+  def withServerAndClient[A](f: (Server[IO], Client[IO]) => IO[A]): A =
+    (srv, client).tupled.use(f.tupled).unsafeRunSync()
 
-  "The HttpMetrics" should {
-    "track the total of active requests" in {
-      for(_ <- 1 to 100) yield  {
-        Future { get("/tracing/ok") }(parallelRequestExecutor)
-      }
-
-      eventually(timeout(2 seconds)) {
-        GeneralMetrics().activeRequests.distribution().max shouldBe 10L
-      }
-
-      eventually(timeout(2 seconds)) {
-        GeneralMetrics().activeRequests.distribution().min shouldBe 0L
-      }
-
-      reporter.clear()
-    }
-
-    "track the response time with status code 2xx" in {
-      for(_ <- 1 to 100) yield get("/tracing/ok")
-      ResponseTimeMetrics().forStatusCode("2xx").distribution().max should be >= 0L
-    }
-
-    "track the response time with status code 4xx" in {
-      for(_ <- 1 to 100) yield {
-        intercept[Exception] {
-          get("/tracing/not-found")
-        }
-      }
-      ResponseTimeMetrics().forStatusCode("4xx").distribution().max should be >= 0L
-    }
-
-    "track the response time with status code 5xx" in {
-      for(_ <- 1 to 100) yield {
-        intercept[Exception] {
-          get("/tracing/error")
-        }
-      }
-      ResponseTimeMetrics().forStatusCode("5xx").distribution().max should be >= 0L
-    }
+  private def get[F[_]: ConcurrentEffect](path: String)(server: Server[F], client: Client[F]): F[String] = {
+    client.expect[String](s"http://127.0.0.1:${server.address.getPort}$path")
   }
 
-  override def afterAll: Unit =
-    server.shutdownNow()
+  "The HttpMetrics" should {
+    "track the total of active requests" in withServerAndClient { (server, client) =>
+      val requests = List
+        .fill(100) {
+          get("/tracing/ok")(server, client)
+        }
+        .parSequence_
+
+      val test = IO {
+        eventually(timeout(5 seconds)) {
+          GeneralMetrics().activeRequests.distribution().max shouldBe 10L
+        }
+
+        eventually(timeout(5 seconds)) {
+          GeneralMetrics().activeRequests.distribution().min shouldBe 0L
+        }
+
+        reporter.clear()
+
+      }
+
+      requests *> test
+    }
+
+    "track the response time with status code 2xx" in withServerAndClient { (server, client) =>
+      val requests: IO[Unit] = List.fill(100)(get("/tracing/ok")(server, client)).sequence_
+
+      val test = IO(ResponseTimeMetrics().forStatusCode("2xx").distribution().max should be >= 0L)
+
+      requests *> test
+    }
+
+    "track the response time with status code 4xx" in withServerAndClient { (server, client) =>
+      val requests: IO[Unit] = List.fill(100)(get("/tracing/not-found")(server, client).attempt).sequence_
+
+      val test = IO(ResponseTimeMetrics().forStatusCode("4xx").distribution().max should be >= 0L)
+
+      requests *> test
+    }
+
+    "track the response time with status code 5xx" in withServerAndClient { (server, client) =>
+      val requests: IO[Unit] = List.fill(100)(get("/tracing/error")(server, client).attempt).sequence_
+
+      val test = IO(ResponseTimeMetrics().forStatusCode("5xx").distribution().max should be >= 0L)
+
+      requests *> test
+    }
+  }
 }
