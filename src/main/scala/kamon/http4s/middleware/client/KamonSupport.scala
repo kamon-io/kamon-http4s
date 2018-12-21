@@ -18,66 +18,52 @@
 package kamon.http4s.middleware.client
 
 import cats.data.Kleisli
-import cats.effect.Effect
+import cats.effect.{Effect, Resource}
 import cats.implicits._
 import kamon.Kamon
 import kamon.context.Context
 import kamon.http4s.{Http4s, StatusCodes, encodeContext, isError}
 import kamon.trace.Tracer.SpanBuilder
 import kamon.trace.{Span, SpanCustomizer}
-import org.http4s.Request
-import org.http4s.client.{Client, DisposableResponse}
+import org.http4s.{Request, Response}
+import org.http4s.client.Client
 
 object KamonSupport {
 
-  def apply[F[_]](client: Client[F])(implicit F:Effect[F]): Client[F] = {
-    client.copy(Kleisli(serviceHandler(client.open)))
-  }
-
-  private def serviceHandler[F[_]](service: Kleisli[F, Request[F], DisposableResponse[F]])
-                                  (request: Request[F])
-                                  (implicit F:Effect[F]): F[DisposableResponse[F]] = {
+  def apply[F[_]](underlying: Client[F])(implicit F:Effect[F]): Client[F] = Client { request =>
     for {
-      ctx <- F.delay(Kamon.currentContext())
-      clientSpan <- F.delay(ctx.get(Span.ContextKey))
-      k <- kamonService(service)(request)(clientSpan)(ctx)
+      ctx <- Resource.liftF(F.delay(Kamon.currentContext()))
+      clientSpan <- Resource.liftF(F.delay(ctx.get(Span.ContextKey)))
+      k <- kamonClient(underlying)(request)(clientSpan)(ctx)
       } yield k
   }
 
-  private def kamonService[F[_]](service: Kleisli[F, Request[F], DisposableResponse[F]])
+  private def kamonClient[F[_]](underlying: Client[F])
                                 (request: Request[F])
                                 (clientSpan: Span)
                                 (ctx: Context)
-                                (implicit F:Effect[F]): F[DisposableResponse[F]] =
+                                (implicit F:Effect[F]): Resource[F, Response[F]] =
     for {
-      spanBuilder <- createSpanBuilder(clientSpan, ctx)(request)
-      span <- createSpan(ctx, spanBuilder)
-      newCtx <- newContext(ctx, span)
-      scope <- F.delay(Kamon.storeContext(newCtx))
-      encodedRequest <- encodeContext(newCtx)(request)
-      result <- service(encodedRequest).attempt
-      response <- result match {
-        case Left(e) => F
-            .delay(span.finish())
-            .flatMap[DisposableResponse[F]](_ => F.raiseError(e))
-        case Right(response) => F.pure(response)
-      }
-      _ <- responseHandler(span, response)
-      _ <- F.delay(scope.close())
-    } yield response
+      spanBuilder <- Resource.liftF(createSpanBuilder(clientSpan, ctx)(request))
+      span <- Resource.make(createSpan(ctx, spanBuilder))(span => F.delay(span.finish()))
+      newCtx = newContext(ctx, span)
+      _ <- Resource.make(F.delay(Kamon.storeContext(newCtx)))(scope => F.delay(scope.close()))
+      encodedRequest <- Resource.liftF(encodeContext(newCtx)(request))
+      result <- underlying.run(encodedRequest)
+      _ <- Resource.liftF(responseHandler(span, result))
+    } yield result
 
-  private def newContext[F[_]](ctx: Context, span: Span)
-                              (implicit F:Effect[F]):F[Context] =
-    F.delay(ctx.withKey(Span.ContextKey, span))
+  private def newContext(ctx: Context, span: Span):Context =
+    ctx.withKey(Span.ContextKey, span)
 
   private def createSpan[F[_]](ctx: Context, spanBuilder: SpanBuilder)
                               (implicit F:Effect[F]): F[Span] =
     F.delay(ctx.get(SpanCustomizer.ContextKey).customize(spanBuilder).start())
 
-  private def responseHandler[F[_]](span: Span, response: DisposableResponse[F])
+  private def responseHandler[F[_]](span: Span, response: Response[F])
                                    (implicit F:Effect[F]): F[Unit] = {
 
-    val code = response.response.status.code
+    val code = response.status.code
     handleStatusCode(span, code) *> handleError(span, code) *> handleNotFound(span, code) *>  F.delay(span.finish())
   }
 
