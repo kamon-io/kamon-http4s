@@ -14,7 +14,8 @@ Supported releases and dependencies are shown below.
 
 | kamon-http4s  | status | jdk  | scala | http4s            
 |:------:|:------:|:----:|--------------:|-------
-|  1.0.8 | stable | 1.8+ | 2.11, 2.12 | 0.18.x
+|  1.0.8-1.0.10 | stable | 1.8+ | 2.11, 2.12 | 0.18.x
+|  1.0.11 | stable | 1.8+ | 2.11, 2.12 | 0.20.x
 
 To get started with SBT, simply add the following to your `build.sbt`
 file:
@@ -137,7 +138,7 @@ That's it, you are now collecting metrics and tracing information from a [http4s
 
 ### Useful links:
 
-[Example of how to correctly configure the execution context][7] by @cmcmteixeira 
+[Example of how to correctly configure the execution context][7] by @cmcmteixeira
 
 [1]: https://github.com/sbt/sbt-javaagent
 [2]: https://github.com/kamon-io/kamon-agent
