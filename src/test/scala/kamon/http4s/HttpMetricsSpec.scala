@@ -73,7 +73,7 @@ class HttpMetricsSpec extends WordSpec
         }.parSequence_
 
       val test = IO {
-        GeneralMetrics().activeRequests.distribution().max should be >= 7L
+        GeneralMetrics().activeRequests.distribution().max should be > 1L
         GeneralMetrics().activeRequests.distribution().min shouldBe 0L
       }
       requests *> test
