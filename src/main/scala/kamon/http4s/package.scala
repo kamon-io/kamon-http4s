@@ -23,7 +23,7 @@ package object http4s {
   }
 
   def readOnlyTextMapFromHeaders[F[_]:Sync](request: Request[F]): F[TextMap] = Sync[F].delay(new TextMap {
-    private val headersMap = request.headers.map(h => h.name.toString -> h.value).toMap
+    private val headersMap = request.headers.toList.map(h => h.name.toString -> h.value).toMap
 
     override def values: Iterator[(String, String)] = headersMap.iterator
     override def get(key: String): Option[String] = headersMap.get(key)
