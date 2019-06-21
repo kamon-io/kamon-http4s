@@ -2,7 +2,7 @@ package kamon
 
 import cats.effect.{Effect, Sync}
 import kamon.context.{Context, TextMap}
-import org.http4s.{Header, Request}
+import org.http4s.{Header, Request, Response}
 import org.slf4j.LoggerFactory
 import cats.implicits._
 
@@ -20,6 +20,13 @@ package object http4s {
     val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
     val headers = textMap.values.map{case (key, value) => Header(key, value)}
     Effect[F].delay(request.putHeaders(headers.toSeq: _*))
+  }
+
+  def encodeContextToResp[F[_]:Sync](ctx:Context)
+                                    (response:Option[Response[F]]): F[Option[Response[F]]] = {
+    val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
+    val headers = textMap.values.map{case (key, value) => Header(key, value)}
+    Sync[F].delay(response.map(_.putHeaders(headers.toSeq: _*)))
   }
 
   def readOnlyTextMapFromHeaders[F[_]:Sync](request: Request[F]): F[TextMap] = Sync[F].delay(new TextMap {

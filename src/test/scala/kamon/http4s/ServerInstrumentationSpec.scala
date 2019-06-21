@@ -16,13 +16,11 @@
 
 package kamon.http4s
 
-import java.net.URL
-
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.trace.Span
 import kamon.trace.Span.TagValue
-import org.http4s.HttpRoutes
+import org.http4s.{Headers, HttpRoutes}
 import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.dsl.io._
@@ -35,6 +33,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
 import scala.concurrent.ExecutionContext
 import org.http4s.implicits._
 import cats.implicits._
+import org.http4s.util.CaseInsensitiveString
 
 class ServerInstrumentationSpec extends WordSpec
   with Matchers
@@ -65,17 +64,20 @@ class ServerInstrumentationSpec extends WordSpec
   def withServerAndClient[A](f: (Server[IO], Client[IO]) => IO[A]): A =
     (srv, client).tupled.use(f.tupled).unsafeRunSync()
 
-  private def get[F[_]: ConcurrentEffect](path: String)(server: Server[F], client: Client[F]): F[String] = {
-    client.expect[String](s"http://127.0.0.1:${server.address.getPort}$path")
-  }
-
-  private def getRawResponse[F[_]: ConcurrentEffect](path: String)(server: Server[F], client: Client[F]): F[String] = {
-    client.get(s"http://127.0.0.1:${server.address.getPort}$path")(_.bodyAsText.compile.toList.map(_.mkString))
+  private def getResponse[F[_]: ConcurrentEffect](path: String)(server: Server[F], client: Client[F]): F[(String, Headers)] = {
+    client.get(s"http://127.0.0.1:${server.address.getPort}$path"){ r =>
+      r.bodyAsText.compile.toList.map(_.mkString).map(_ -> r.headers)
+    }
   }
 
   "The Server instrumentation" should {
     "propagate the current context and respond to the ok action" in withServerAndClient { (server, client) =>
-      val request = get("/tracing/ok")(server, client).map(_ should startWith("ok"))
+      val request = getResponse("/tracing/ok")(server, client).map { case (body, headers) =>
+        headers.exists(_.name == CaseInsensitiveString("X-B3-TraceId")) shouldBe true
+        headers.exists(_.name == CaseInsensitiveString("X-B3-Sampled")) shouldBe true
+        headers.exists(_.name == CaseInsensitiveString("X-B3-SpanId")) shouldBe true
+        body should startWith("ok")
+      }
 
       val test = IO {
         eventually(timeout(5.seconds)) {
@@ -94,7 +96,12 @@ class ServerInstrumentationSpec extends WordSpec
     }
 
     "propagate the current context and respond to the not-found action" in withServerAndClient { (server, client) =>
-      val request = getRawResponse("/tracing/not-found")(server, client).map(_ should startWith("not-found"))
+      val request = getResponse("/tracing/not-found")(server, client).map { case (body, headers) =>
+        headers.exists(_.name == CaseInsensitiveString("X-B3-TraceId")) shouldBe true
+        headers.exists(_.name == CaseInsensitiveString("X-B3-Sampled")) shouldBe true
+        headers.exists(_.name == CaseInsensitiveString("X-B3-SpanId")) shouldBe true
+        body should startWith("not-found")
+      }
 
       val test = IO {
         eventually(timeout(5.seconds)) {
@@ -113,7 +120,12 @@ class ServerInstrumentationSpec extends WordSpec
     }
 
     "propagate the current context and respond to the error action" in withServerAndClient { (server, client) =>
-      val request = getRawResponse("/tracing/error")(server, client).map(_ should startWith("error!"))
+      val request = getResponse("/tracing/error")(server, client).map { case (body, headers) =>
+        headers.exists(_.name == CaseInsensitiveString("X-B3-TraceId")) shouldBe true
+        headers.exists(_.name == CaseInsensitiveString("X-B3-Sampled")) shouldBe true
+        headers.exists(_.name == CaseInsensitiveString("X-B3-SpanId")) shouldBe true
+        body should startWith("error!")
+      }
 
       val test = IO {
         eventually(timeout(5.seconds)) {
