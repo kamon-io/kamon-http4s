@@ -19,14 +19,14 @@ package kamon.http4s.middleware.server
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import cats.data.{EitherT, Kleisli, OptionT}
+import cats.data.{Kleisli, OptionT}
 import cats.effect.Sync
 import cats.implicits._
 import fs2.Stream
 import kamon.Kamon
 import kamon.context.Context
 import kamon.http4s.Metrics.{GeneralMetrics, RequestTimeMetrics, ResponseTimeMetrics, ServiceMetrics}
-import kamon.http4s.{Http4s, Log, StatusCodes, decodeContext}
+import kamon.http4s.{Http4s, Log, StatusCodes, decodeContext, encodeContextToResp}
 import kamon.metric.{Histogram, RangeSampler}
 import kamon.trace.Span
 import org.http4s.{HttpRoutes, Method, Request, Response, Status}
@@ -51,8 +51,9 @@ object KamonSupport {
       scope <- F.delay(Kamon.storeContext(incomingContext.withKey(Span.ContextKey, serverSpan)))
       e <- service(request).value.attempt
       resp <- kamonServiceHandler(request.method, now, serviceMetrics, serverSpan, e)
+      respWithContext <- encodeContextToResp(scope.context)(resp)
       _ <- F.delay(scope.close())
-    } yield resp
+    } yield respWithContext
   }
 
   private def kamonServiceHandler[F[_]](method: Method,
