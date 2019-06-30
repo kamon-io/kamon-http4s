@@ -15,13 +15,13 @@ Supported releases and dependencies are shown below.
 | kamon-http4s  | status | jdk  | scala | http4s            
 |:------:|:------:|:----:|--------------:|-------
 |  1.0.8-1.0.10 | stable | 1.8+ | 2.11, 2.12 | 0.18.x
-|  1.0.11 | stable | 1.8+ | 2.11, 2.12 | 0.20.x
+|  1.0.13 | stable | 1.8+ | 2.11, 2.12 | 0.20.x
 
 To get started with SBT, simply add the following to your `build.sbt`
 file:
 
 ```scala
-libraryDependencies += "io.kamon" %% "kamon-http4s" % "1.0.8"
+libraryDependencies += "io.kamon" %% "kamon-http4s" % "1.0.13"
 ```
 
 ## Metrics and Tracing for http4s in 2 steps

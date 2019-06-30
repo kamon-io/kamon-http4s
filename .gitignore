@@ -38,3 +38,10 @@ _site
 
 # Default sigar library provision location.
 native/
+
+
+### Bloop ###
+.bloop/
+
+### Metals ###
+.metals/
