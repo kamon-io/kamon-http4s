@@ -1,65 +1,87 @@
 package kamon
 
-import cats.effect.{Effect, Sync}
-import kamon.context.{Context, TextMap}
-import org.http4s.{Header, Request, Response}
-import org.slf4j.LoggerFactory
-import cats.implicits._
+import org.http4s.{Header, Headers, Request, Response, Status}
+import kamon.instrumentation.http.HttpMessage
+import kamon.instrumentation.http.HttpMessage.ResponseBuilder
+import org.http4s.util.CaseInsensitiveString
 
 package object http4s {
 
-  def decodeContext[F[_]:Sync](request: Request[F]): F[Context] = {
-    for {
-      headersTextMap <- readOnlyTextMapFromHeaders(request)
-      context <- Sync[F].delay(Kamon.contextCodec().HttpHeaders.decode(headersTextMap))
-    } yield context
+
+  def buildRequestMessage[F[_]](inner: Request[F]): HttpMessage.Request = new HttpMessage.Request {
+    override def url: String = inner.uri.toString()
+
+    override def path: String = inner.uri.path
+
+    override def method: String = inner.method.name
+
+    override def host: String = inner.uri.authority.map(_.host.value).getOrElse("")
+
+    override def port: Int = inner.uri.authority.flatMap(_.port).getOrElse(0)
+
+    override def read(header: String): Option[String] = inner.headers.get(CaseInsensitiveString(header)).map(_.value)
+
+    override def readAll(): Map[String, String] = {
+      val builder = Map.newBuilder[String, String]
+      inner.headers.foreach(h => builder += (h.name.value -> h.value))
+      builder.result()
+    }
   }
 
-  def encodeContext[F[_]:Effect](ctx:Context)
-                                (request:Request[F]): F[Request[F]] = {
-    val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
-    val headers = textMap.values.map{case (key, value) => Header(key, value)}
-    Effect[F].delay(request.putHeaders(headers.toSeq: _*))
+  def errorResponseBuilder[F[_]]: HttpMessage.ResponseBuilder[Response[F]] = new ResponseBuilder[Response[F]] {
+    override def write(header: String, value: String): Unit = ()
+    override def statusCode: Int = 500
+    override def build(): Response[F] = new Response[F](status = Status.InternalServerError)
   }
 
-  def encodeContextToResp[F[_]:Sync](ctx:Context)
-                                    (response:Option[Response[F]]): F[Option[Response[F]]] = {
-    val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
-    val headers = textMap.values.map{case (key, value) => Header(key, value)}
-    Sync[F].delay(response.map(_.putHeaders(headers.toSeq: _*)))
+  //TODO both of these
+  def notFoundResponseBuilder[F[_]]: HttpMessage.ResponseBuilder[Response[F]] = new ResponseBuilder[Response[F]] {
+    private var _headers = Headers.empty
+
+    override def write(header: String, value: String): Unit =
+      _headers = _headers.put(Header(header, value))
+
+    override def statusCode: Int = 404
+    override def build(): Response[F] = new Response[F](status = Status.NotFound, headers = _headers)
   }
 
-  def readOnlyTextMapFromHeaders[F[_]:Sync](request: Request[F]): F[TextMap] = Sync[F].delay(new TextMap {
-    private val headersMap = request.headers.toList.map(h => h.name.toString -> h.value).toMap
+  def getResponseBuilder[F[_]](response: Response[F]) = new HttpMessage.ResponseBuilder[Response[F]] {
+    private var _headers = response.headers
 
-    override def values: Iterator[(String, String)] = headersMap.iterator
-    override def get(key: String): Option[String] = headersMap.get(key)
-    override def put(key: String, value: String): Unit = {}
-  })
+    override def statusCode: Int = response.status.code
 
-  def isError(statusCode: Int): Boolean =
-    statusCode >= 500 && statusCode < 600
+    override def build(): Response[F] = response.withHeaders(_headers)
 
-  object StatusCodes {
-    val NotFound = 404
+    override def write(header: String, value: String): Unit =
+      _headers = _headers.put(Header(header, value))
   }
 
-  trait Log[F[_]] {
-    def info(msg: String): F[Unit]
-    def warn(msg: String): F[Unit]
-    def debug(msg: String): F[Unit]
-    def error(error: Throwable): F[Unit]
+
+  def getRequestBuilder[F[_]](request: Request[F]): HttpMessage.RequestBuilder[Request[F]] = new HttpMessage.RequestBuilder[Request[F]] {
+    private var _headers = request.headers
+
+    override def build(): Request[F] = request.withHeaders(_headers)
+
+    override def write(header: String, value: String): Unit =
+      _headers = _headers.put(Header(header, value))
+
+    override def url: String = request.uri.toString()
+
+    override def path: String = request.uri.path
+
+    override def method: String = request.method.name
+
+    override def host: String = request.uri.authority.map(_.host.value).getOrElse("")
+
+    override def port: Int = request.uri.authority.flatMap(_.port).getOrElse(0)
+
+    override def read(header: String): Option[String] = _headers.get(CaseInsensitiveString(header)).map(_.value)
+
+    override def readAll(): Map[String, String] = {
+      val builder = Map.newBuilder[String, String]
+      request.headers.foreach(h => builder += (h.name.value -> h.value))
+      builder.result()
+    }
   }
 
-  object Log {
-    private val logger = LoggerFactory.getLogger(this.getClass)
-
-    implicit def syncLogInstance[F[_]](implicit F: Sync[F]): Log[F] =
-      new Log[F] {
-        override def info(msg: String): F[Unit] = F.delay(logger.info(msg))
-        override def warn(msg: String): F[Unit] = F.delay(logger.warn(msg))
-        override def debug(msg: String): F[Unit] = F.delay(logger.debug(msg))
-        override def error(error: Throwable): F[Unit] = F.delay(logger.error(error.getMessage, error))
-      }
-  }
 }

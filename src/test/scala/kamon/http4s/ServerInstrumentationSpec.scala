@@ -19,12 +19,11 @@ package kamon.http4s
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.trace.Span
-import kamon.trace.Span.TagValue
 import org.http4s.{Headers, HttpRoutes}
 import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.dsl.io._
-import org.http4s.server.Server
+import org.http4s.server.{Server}
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
@@ -33,6 +32,8 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
 import scala.concurrent.ExecutionContext
 import org.http4s.implicits._
 import cats.implicits._
+import kamon.testkit.TestSpanReporter
+import kamon.tag.Lookups.{plain, plainLong}
 import org.http4s.util.CaseInsensitiveString
 
 class ServerInstrumentationSpec extends WordSpec
@@ -40,7 +41,7 @@ class ServerInstrumentationSpec extends WordSpec
   with Eventually
   with SpanSugar
   with OptionValues
-  with SpanReporter
+  with TestSpanReporter
   with BeforeAndAfterAll {
 
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
@@ -52,10 +53,10 @@ class ServerInstrumentationSpec extends WordSpec
       .withExecutionContext(ExecutionContext.global)
       .withHttpApp(KamonSupport(HttpRoutes.of[IO] {
           case GET -> Root / "tracing" / "ok" =>  Ok("ok")
-          case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
           case GET -> Root / "tracing" / "error"  => InternalServerError("error!")
+          case GET -> Root / "tracing" / "errorinternal"  => throw new RuntimeException("ble")
         }
-      ).orNotFound)
+      ,"", 0).orNotFound)
     .resource
 
   val client =
@@ -73,22 +74,19 @@ class ServerInstrumentationSpec extends WordSpec
   "The Server instrumentation" should {
     "propagate the current context and respond to the ok action" in withServerAndClient { (server, client) =>
       val request = getResponse("/tracing/ok")(server, client).map { case (body, headers) =>
-        headers.exists(_.name == CaseInsensitiveString("X-B3-TraceId")) shouldBe true
-        headers.exists(_.name == CaseInsensitiveString("X-B3-Sampled")) shouldBe true
-        headers.exists(_.name == CaseInsensitiveString("X-B3-SpanId")) shouldBe true
+        headers.exists(_.name == CaseInsensitiveString("trace-id")) shouldBe true
         body should startWith("ok")
       }
 
       val test = IO {
         eventually(timeout(5.seconds)) {
-          val span = reporter.nextSpan().value
-          val spanTags = stringTag(span) _
+          val span = testSpanReporter().nextSpan().value
 
-          span.operationName shouldBe "tracing.ok.get"
-          spanTags("span.kind") shouldBe "server"
-          spanTags("component") shouldBe "http4s.server"
-          spanTags("http.method") shouldBe "GET"
-          span.tags("http.status_code") shouldBe TagValue.Number(200)
+          span.operationName shouldBe "/tracing/ok"
+          span.kind shouldBe Span.Kind.Server
+          span.metricTags.get(plain("component")) shouldBe "http4s.server"
+          span.metricTags.get(plain("http.method")) shouldBe "GET"
+          span.metricTags.get(plainLong("http.status_code")) shouldBe 200
         }
       }
 
@@ -97,22 +95,18 @@ class ServerInstrumentationSpec extends WordSpec
 
     "propagate the current context and respond to the not-found action" in withServerAndClient { (server, client) =>
       val request = getResponse("/tracing/not-found")(server, client).map { case (body, headers) =>
-        headers.exists(_.name == CaseInsensitiveString("X-B3-TraceId")) shouldBe true
-        headers.exists(_.name == CaseInsensitiveString("X-B3-Sampled")) shouldBe true
-        headers.exists(_.name == CaseInsensitiveString("X-B3-SpanId")) shouldBe true
-        body should startWith("not-found")
+        headers.exists(_.name == CaseInsensitiveString("trace-id")) shouldBe true
       }
 
       val test = IO {
         eventually(timeout(5.seconds)) {
-          val span = reporter.nextSpan().value
-          val spanTags = stringTag(span) _
+          val span = testSpanReporter.nextSpan().value
 
-          span.operationName shouldBe "not-found"
-          spanTags("span.kind") shouldBe "server"
-          spanTags("component") shouldBe "http4s.server"
-          spanTags("http.method") shouldBe "GET"
-          span.tags("http.status_code") shouldBe TagValue.Number(404)
+          span.operationName shouldBe "unhandled"
+          span.kind shouldBe Span.Kind.Server
+          span.metricTags.get(plain("component")) shouldBe "http4s.server"
+          span.metricTags.get(plain("http.method")) shouldBe "GET"
+          span.metricTags.get(plainLong("http.status_code")) shouldBe 404
         }
       }
 
@@ -121,39 +115,48 @@ class ServerInstrumentationSpec extends WordSpec
 
     "propagate the current context and respond to the error action" in withServerAndClient { (server, client) =>
       val request = getResponse("/tracing/error")(server, client).map { case (body, headers) =>
-        headers.exists(_.name == CaseInsensitiveString("X-B3-TraceId")) shouldBe true
-        headers.exists(_.name == CaseInsensitiveString("X-B3-Sampled")) shouldBe true
-        headers.exists(_.name == CaseInsensitiveString("X-B3-SpanId")) shouldBe true
+        headers.exists(_.name == CaseInsensitiveString("trace-id")) shouldBe true
         body should startWith("error!")
       }
 
       val test = IO {
         eventually(timeout(5.seconds)) {
-          val span = reporter.nextSpan().value
-          val spanTags = stringTag(span) _
+          val span = testSpanReporter.nextSpan().value
 
-          span.operationName shouldBe "tracing.error.get"
-          spanTags("span.kind") shouldBe "server"
-          spanTags("component") shouldBe "http4s.server"
-          spanTags("http.method") shouldBe "GET"
-          span.tags("error") shouldBe TagValue.True
-          span.tags("http.status_code") shouldBe TagValue.Number(500)
+          span.operationName shouldBe "/tracing/error"
+          span.kind shouldBe Span.Kind.Server
+          span.hasError shouldBe true
+          span.metricTags.get(plain("component")) shouldBe "http4s.server"
+          span.metricTags.get(plain("http.method")) shouldBe "GET"
+          span.metricTags.get(plainLong("http.status_code")) shouldBe 500
         }
       }
 
       request *> test
     }
-  }
+    "propagate the current context and respond to the error while processing" in withServerAndClient { (server, client) =>
+      val request = getResponse("/tracing/errorinternal")(server, client)
+      /* TODO serviceErrorHandler kicks in and rewrites response, loosing trace information
+        .map { case (body, headers) =>
+          headers.exists(_.name == CaseInsensitiveString("trace-id")) shouldBe true
+        }
+      */
 
-  def stringTag(span: Span.FinishedSpan)(tag: String): String = {
-    span.tags(tag).asInstanceOf[TagValue.String].string
-  }
+      val test = IO {
+        eventually(timeout(5.seconds)) {
+          val span = testSpanReporter.nextSpan().value
 
-  override protected def beforeAll(): Unit = {
-    start()
-  }
+          span.operationName shouldBe "/tracing/errorinternal"
+          span.kind shouldBe Span.Kind.Server
+          span.hasError shouldBe true
+          span.metricTags.get(plain("component")) shouldBe "http4s.server"
+          span.metricTags.get(plain("http.method")) shouldBe "GET"
+          span.metricTags.get(plainLong("http.status_code")) shouldBe 500
+        }
+      }
 
-  override def afterAll: Unit = {
-    stop()
+      request *> test
+    }
+
   }
 }

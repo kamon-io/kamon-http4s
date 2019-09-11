@@ -20,11 +20,9 @@ import java.net.ConnectException
 
 import cats.effect.{IO, Resource}
 import kamon.Kamon
-import kamon.context.Context
-import kamon.context.Context.create
 import kamon.http4s.middleware.client.KamonSupport
-import kamon.trace.Span.TagValue
-import kamon.trace.{Span, SpanCustomizer}
+import kamon.testkit.TestSpanReporter
+import kamon.trace.Span
 import org.http4s.{HttpRoutes, Response}
 import org.http4s.client._
 import org.http4s.dsl.io._
@@ -32,13 +30,15 @@ import org.http4s.implicits._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
+import kamon.tag.Lookups.{plainLong, plain}
+
 
 class ClientInstrumentationSpec extends WordSpec
   with Matchers
   with Eventually
   with SpanSugar
   with OptionValues
-  with SpanReporter
+  with TestSpanReporter
   with BeforeAndAfterAll {
 
   val service = HttpRoutes.of[IO] {
@@ -51,129 +51,96 @@ class ClientInstrumentationSpec extends WordSpec
 
   "The Client instrumentation" should {
     "propagate the current context and generate a span inside an action and complete the ws request" in {
-      val okSpan = Kamon.buildSpan("ok-operation-span").start()
+      val okSpan = Kamon.spanBuilder("ok-operation-span").start()
 
-      Kamon.withContext(create(Span.ContextKey, okSpan)) {
+      Kamon.runWithSpan(okSpan) {
         client.expect[String]("/tracing/ok").unsafeRunSync() shouldBe "ok"
       }
 
       eventually(timeout(2 seconds)) {
-        val span = reporter.nextSpan().value
-        val spanTags = stringTag(span) _
+        val span = testSpanReporter().nextSpan().value
 
         span.operationName shouldBe "/tracing/ok"
-        spanTags("span.kind") shouldBe "client"
-        spanTags("component") shouldBe "http4s.client"
-        spanTags("http.method") shouldBe "GET"
-        span.tags("http.status_code") shouldBe TagValue.Number(200)
+        span.kind shouldBe Span.Kind.Client
+        span.metricTags.get(plain("component")) shouldBe "http4s.client"
+        span.metricTags.get(plain("http.method")) shouldBe "GET"
+        span.metricTags.get(plainLong("http.status_code")) shouldBe 200
+        span.metricTags.get(plain("parentOperation")) shouldBe "ok-operation-span"
 
-        okSpan.context.spanID == span.context.parentID
+        okSpan.id == span.parentId
       }
     }
 
     "close and finish a span even if an exception is thrown by the client" in {
-      val okSpan = Kamon.buildSpan("client exception").start()
+      val okSpan = Kamon.spanBuilder("client-exception").start()
       val client: Client[IO] = KamonSupport[IO](
         Client(_ => Resource.liftF(IO.raiseError[Response[IO]](new ConnectException("Connection Refused."))))
       )
 
-      Kamon.withContext(create(Span.ContextKey, okSpan)) {
+      Kamon.runWithSpan(okSpan) {
         a[ConnectException] should be thrownBy {
           client.expect[String]("/tracing/ok").unsafeRunSync()
         }
       }
 
       eventually(timeout(2 seconds)) {
-        val span = reporter.nextSpan().value
-        val spanTags = stringTag(span) _
-
+        val span = testSpanReporter().nextSpan().value
         span.operationName shouldBe "/tracing/ok"
-        spanTags("span.kind") shouldBe "client"
-        spanTags("component") shouldBe "http4s.client"
-        spanTags("http.method") shouldBe "GET"
+        span.kind shouldBe Span.Kind.Client
+        span.metricTags.get(plain("component")) shouldBe "http4s.client"
+        span.metricTags.get(plain("http.method")) shouldBe "GET"
+        span.hasError shouldBe true
 
-        okSpan.context.spanID == span.context.parentID
+        okSpan.id == span.parentId
       }
     }
 
     "propagate the current context and generate a span called not-found and complete the ws request" in {
-      val notFoundSpan = Kamon.buildSpan("not-found-operation-span").start()
+      val notFoundSpan = Kamon.spanBuilder("not-found-operation-span").start()
 
-      Kamon.withContext(create(Span.ContextKey, notFoundSpan)) {
+      Kamon.runWithSpan(notFoundSpan) {
         client.expect[String]("/tracing/not-found").attempt.unsafeRunSync().isLeft shouldBe true
       }
 
       eventually(timeout(2 seconds)) {
-        val span = reporter.nextSpan().value
-        val spanTags = stringTag(span) _
+        val span = testSpanReporter().nextSpan().value
+        //TODO what should be client not found oper name, settings provide no default for clients
+        span.operationName shouldBe "http.client.request"
+        span.kind shouldBe Span.Kind.Client
+        span.metricTags.get(plain("component")) shouldBe "http4s.client"
+        span.metricTags.get(plain("http.method")) shouldBe "GET"
+        span.metricTags.get(plainLong("http.status_code")) shouldBe 404
+        span.metricTags.get(plain("parentOperation")) shouldBe "not-found-operation-span"
 
-        span.operationName shouldBe "not-found"
-        spanTags("span.kind") shouldBe "client"
-        spanTags("component") shouldBe "http4s.client"
-        spanTags("http.method") shouldBe "GET"
-        span.tags("http.status_code") shouldBe TagValue.Number(404)
-
-        notFoundSpan.context.spanID == span.context.parentID
+        notFoundSpan.id == span.parentId
       }
     }
 
-    "propagate the current context and generate a span with error and complete the ws request" in {
-      val errorSpan = Kamon.buildSpan("error-operation-span").start()
 
-      Kamon.withContext(create(Span.ContextKey, errorSpan)) {
+
+    "propagate the current context and generate a span with error and complete the ws request" in {
+      val errorSpan = Kamon.spanBuilder("error-operation-span").start()
+
+      Kamon.runWithSpan(errorSpan) {
         client.expect[String]("/tracing/error").attempt.unsafeRunSync().isLeft shouldBe true
       }
 
       eventually(timeout(2 seconds)) {
-        val span = reporter.nextSpan().value
-        val spanTags = stringTag(span) _
+        val span = testSpanReporter().nextSpan().value
 
         span.operationName shouldBe "/tracing/error"
-        spanTags("span.kind") shouldBe "client"
-        spanTags("component") shouldBe "http4s.client"
-        spanTags("http.method") shouldBe "GET"
-        span.tags("error") shouldBe TagValue.True
-        span.tags("http.status_code") shouldBe TagValue.Number(500)
+        span.kind shouldBe Span.Kind.Client
+        span.metricTags.get(plain("component")) shouldBe "http4s.client"
+        span.metricTags.get(plain("http.method")) shouldBe "GET"
+        span.hasError shouldBe true
+        span.metricTags.get(plainLong("http.status_code")) shouldBe 500
+        span.metricTags.get(plain("parentOperation")) shouldBe "error-operation-span"
 
-        errorSpan.context.spanID == span.context.parentID
+        errorSpan.id == span.parentId
       }
     }
 
-    "propagate the current context and pickup a SpanCustomizer and apply it to the new spans and complete the ws request" in {
-      val okSpan = Kamon.buildSpan("ok-operation-span").start()
-
-      val customizedOperationName = "customized-operation-name"
-
-      val context = Context.create(Span.ContextKey, okSpan)
-        .withKey(SpanCustomizer.ContextKey, SpanCustomizer.forOperationName(customizedOperationName))
-
-      Kamon.withContext(context) {
-        client.expect[String]("/tracing/ok").unsafeRunSync shouldBe "ok"
-      }
-
-      eventually(timeout(2 seconds)) {
-        val span = reporter.nextSpan().value
-        val spanTags = stringTag(span) _
-
-        span.operationName shouldBe customizedOperationName
-        spanTags("span.kind") shouldBe "client"
-        spanTags("component") shouldBe "http4s.client"
-        spanTags("http.method") shouldBe "GET"
-        span.tags("http.status_code") shouldBe TagValue.Number(200)
-
-        okSpan.context.spanID == span.context.parentID
-      }
-    }
   }
 
-  def stringTag(span: Span.FinishedSpan)(tag: String): String = {
-    span.tags(tag).asInstanceOf[TagValue.String].string
-  }
 
-  override protected def beforeAll(): Unit =
-    start()
-
-  override def afterAll: Unit = {
-    stop()
-  }
 }
