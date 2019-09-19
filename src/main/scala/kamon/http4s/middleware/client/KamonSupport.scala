@@ -15,81 +15,63 @@
  */
 
 
-package kamon.http4s.middleware.client
+package kamon.http4s
+package middleware.client
 
-import cats.data.Kleisli
 import cats.effect.{Effect, Resource}
 import cats.implicits._
+import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.context.Context
-import kamon.http4s.{Http4s, StatusCodes, encodeContext, isError}
-import kamon.trace.Tracer.SpanBuilder
-import kamon.trace.{Span, SpanCustomizer}
+import kamon.instrumentation.http.HttpClientInstrumentation
 import org.http4s.{Request, Response}
 import org.http4s.client.Client
 
 object KamonSupport {
 
+  private var _instrumentation = instrumentation(Kamon.config())
+
+  private def instrumentation(kamonConfig: Config): HttpClientInstrumentation = {
+    val httpClientConfig = kamonConfig.getConfig("kamon.instrumentation.http4s.client")
+    HttpClientInstrumentation.from(httpClientConfig, "http4s.client")
+  }
+
+  Kamon.onReconfigure(newConfig => _instrumentation = instrumentation(newConfig))
+
+
   def apply[F[_]](underlying: Client[F])(implicit F:Effect[F]): Client[F] = Client { request =>
+
     for {
       ctx <- Resource.liftF(F.delay(Kamon.currentContext()))
-      clientSpan <- Resource.liftF(F.delay(ctx.get(Span.ContextKey)))
-      k <- kamonClient(underlying)(request)(clientSpan)(ctx)
-      } yield k
+      k   <- kamonClient(underlying)(request)(ctx)(_instrumentation)
+    } yield k
   }
+
 
   private def kamonClient[F[_]](underlying: Client[F])
-                                (request: Request[F])
-                                (clientSpan: Span)
-                                (ctx: Context)
-                                (implicit F:Effect[F]): Resource[F, Response[F]] =
+                               (request: Request[F])
+                               (ctx: Context)
+                               (instrumentation: HttpClientInstrumentation)
+                               (implicit F:Effect[F]): Resource[F, Response[F]] =
     for {
-      spanBuilder <- Resource.liftF(createSpanBuilder(clientSpan, ctx)(request))
-      span <- Resource.make(createSpan(ctx, spanBuilder))(span => F.delay(span.finish()))
-      newCtx = newContext(ctx, span)
-      _ <- Resource.make(F.delay(Kamon.storeContext(newCtx)))(scope => F.delay(scope.close()))
-      encodedRequest <- Resource.liftF(encodeContext(newCtx)(request))
-      result <- underlying.run(encodedRequest)
-      _ <- Resource.liftF(responseHandler(span, result))
-    } yield result
+      requestHandler  <- Resource.liftF(F.delay(instrumentation.createHandler(getRequestBuilder(request), ctx)))
+      response        <- underlying.run(requestHandler.request).attempt
+      trackedResponse <- Resource.liftF(handleResponse(response, requestHandler, instrumentation.settings))
+    } yield trackedResponse
 
-  private def newContext(ctx: Context, span: Span):Context =
-    ctx.withKey(Span.ContextKey, span)
+  def handleResponse[F[_]](
+                       response: Either[Throwable, Response[F]],
+                       requestHandler: HttpClientInstrumentation.RequestHandler[Request[F]],
+                       settings: HttpClientInstrumentation.Settings
+                     )(implicit F:Effect[F]): F[Response[F]] =
+      response match {
+        case Right(res) =>
+          if(res.status.code == 404) requestHandler.span.name(settings.defaultOperationName)
+          requestHandler.processResponse(getResponseBuilder(res))
+          F.delay(res)
+        case Left(error) =>
+          requestHandler.span.fail(error).finish()
+          F.raiseError(error)
+      }
 
-  private def createSpan[F[_]](ctx: Context, spanBuilder: SpanBuilder)
-                              (implicit F:Effect[F]): F[Span] =
-    F.delay(ctx.get(SpanCustomizer.ContextKey).customize(spanBuilder).start())
-
-  private def responseHandler[F[_]](span: Span, response: Response[F])
-                                   (implicit F:Effect[F]): F[Unit] = {
-
-    val code = response.status.code
-    handleStatusCode(span, code) *> handleError(span, code) *> handleNotFound(span, code) *>  F.delay(span.finish())
-  }
-
-  private def handleStatusCode[F[_]](span: Span, code:Int)
-                                 (implicit F: Effect[F]):F[Unit] =
-    F.delay {
-      if (Http4s.addHttpStatusCodeAsMetricTag) span.tagMetric("http.status_code", code.toString)
-      else span.tag("http.status_code", code)
-    }
-
-  private def handleError[F[_]](span: Span, code:Int)(implicit F: Effect[F]):F[Unit] =
-    F.delay(if(isError(code)) span.addError("error"))
-
-  private def handleNotFound[F[_]](span: Span, code:Int)(implicit F: Effect[F]):F[Unit] =
-  F.delay(if(code == StatusCodes.NotFound) span.setOperationName("not-found"))
-
-  private def createSpanBuilder[F[_]](clientSpan: Span, ctx:Context)
-                                     (request: Request[F])
-                                     (implicit F:Effect[F]): F[SpanBuilder] =
-    for {
-      operationName <- kamon.http4s.Http4s.generateHttpClientOperationName(request)
-      spanBuilder <- F.delay(Kamon.buildSpan(operationName)
-        .asChildOf(clientSpan)
-        .withMetricTag("span.kind", "client")
-        .withMetricTag("component", "http4s.client")
-        .withMetricTag("http.method", request.method.name)
-        .withTag("http.url", request.uri.renderString))
-    } yield spanBuilder
 }
