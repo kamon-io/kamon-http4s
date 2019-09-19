@@ -18,8 +18,9 @@ package kamon.http4s
 
 import cats.effect.{Effect, Sync}
 import com.typesafe.config.Config
+import kamon.Configuration.OnReconfigureHook
 import kamon.util.DynamicAccess
-import kamon.{Kamon, OnReconfigureHook}
+import kamon.Kamon
 import org.http4s.Request
 
 object Http4s {
@@ -35,7 +36,7 @@ object Http4s {
   private def nameGeneratorFromConfig(config: Config): NameGenerator = {
     val dynamic = new DynamicAccess(getClass.getClassLoader)
     val nameGeneratorFQCN = config.getString("kamon.http4s.name-generator")
-    dynamic.createInstanceFor[NameGenerator](nameGeneratorFQCN, Nil).get
+    dynamic.createInstanceFor[NameGenerator](nameGeneratorFQCN, Nil)
   }
 
   private def addHttpStatusCodeAsMetricTagFromConfig(config: Config): Boolean =

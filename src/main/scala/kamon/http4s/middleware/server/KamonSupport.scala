@@ -48,7 +48,7 @@ object KamonSupport {
       incomingContext <- decodeContext(request)
       serverSpan <- createSpan(request, incomingContext)
       _ <- F.delay(serviceMetrics.generalMetrics.activeRequests.increment())
-      scope <- F.delay(Kamon.storeContext(incomingContext.withKey(Span.ContextKey, serverSpan)))
+      scope <- F.delay(Kamon.storeContext(incomingContext.withEntry(Span.Key, serverSpan)))
       e <- service(request).value.attempt
       resp <- kamonServiceHandler(request.method, now, serviceMetrics, serverSpan, e)
       respWithContext <- encodeContextToResp(scope.context)(resp)
@@ -118,12 +118,11 @@ object KamonSupport {
                               (implicit F: Sync[F]): F[Span] = {
     for {
       operationName <- kamon.http4s.Http4s.generateOperationName(request)
-      serverSpan <- F.delay(Kamon.buildSpan(operationName)
-        .asChildOf(incomingContext.get(Span.ContextKey))
-        .withMetricTag("span.kind", "server")
-        .withMetricTag("component", "http4s.server")
-        .withTag("http.method", request.method.name)
-        .withTag("http.url", request.uri.renderString)
+      serverSpan <- F.delay(Kamon.serverSpanBuilder(operationName, "http4s.server")
+        .asChildOf(incomingContext.get(Span.Key))
+        .tagMetrics("span.kind", "server")
+        .tag("http.method", request.method.name)
+        .tag("http.url", request.uri.renderString)
         .start())
     } yield serverSpan
   }
@@ -133,7 +132,7 @@ object KamonSupport {
                                endTimestamp: Instant)
                               (implicit F: Sync[F]): F[Unit] =
     F.delay {
-      if (Http4s.addHttpStatusCodeAsMetricTag) serverSpan.tagMetric("http.status_code", status.code.toString)
+      if (Http4s.addHttpStatusCodeAsMetricTag) serverSpan.tagMetrics("http.status_code", status.code.toString)
       else serverSpan.tag("http.status_code", status.code)
     } *> handleStatusCode(serverSpan, status.code) *> F.delay(serverSpan.finish(endTimestamp))
 
@@ -141,16 +140,16 @@ object KamonSupport {
   private def finishSpanWithError[F[_]](serverSpan:Span,
                                         endTimestamp: Instant)
                                        (implicit F: Sync[F]): F[Unit] =
-    F.delay(serverSpan.addError("abnormal termination")) *>
+    F.delay(serverSpan.fail("abnormal termination")) *>
       F.delay(serverSpan.finish(endTimestamp))
 
 
   private def handleStatusCode[F[_]](span: Span, code:Int)(implicit F: Sync[F]):F[Unit] =
     F.delay {
       if (code < 500) {
-        if (code == StatusCodes.NotFound) span.setOperationName("not-found")
+        if (code == StatusCodes.NotFound) span.name("not-found")
       } else {
-        span.addError("error")
+        span.fail("error")
       }
     }
 

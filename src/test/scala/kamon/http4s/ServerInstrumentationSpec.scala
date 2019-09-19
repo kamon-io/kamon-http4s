@@ -19,7 +19,6 @@ package kamon.http4s
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.trace.Span
-import kamon.trace.Span.TagValue
 import org.http4s.{Headers, HttpRoutes}
 import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
@@ -33,6 +32,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
 import scala.concurrent.ExecutionContext
 import org.http4s.implicits._
 import cats.implicits._
+import kamon.tag.Lookups
 import org.http4s.util.CaseInsensitiveString
 
 class ServerInstrumentationSpec extends WordSpec
@@ -87,8 +87,8 @@ class ServerInstrumentationSpec extends WordSpec
           span.operationName shouldBe "tracing.ok.get"
           spanTags("span.kind") shouldBe "server"
           spanTags("component") shouldBe "http4s.server"
-          spanTags("http.method") shouldBe "GET"
-          span.tags("http.status_code") shouldBe TagValue.Number(200)
+          span.tags.get(Lookups.plain("http.method")) shouldBe "GET"
+          span.tags.get(Lookups.plainLong("http.status_code")) shouldBe 200
         }
       }
 
@@ -111,8 +111,8 @@ class ServerInstrumentationSpec extends WordSpec
           span.operationName shouldBe "not-found"
           spanTags("span.kind") shouldBe "server"
           spanTags("component") shouldBe "http4s.server"
-          spanTags("http.method") shouldBe "GET"
-          span.tags("http.status_code") shouldBe TagValue.Number(404)
+          span.tags.get(Lookups.plain("http.method")) shouldBe "GET"
+          span.tags.get(Lookups.plainLong("http.status_code")) shouldBe 404
         }
       }
 
@@ -135,9 +135,9 @@ class ServerInstrumentationSpec extends WordSpec
           span.operationName shouldBe "tracing.error.get"
           spanTags("span.kind") shouldBe "server"
           spanTags("component") shouldBe "http4s.server"
-          spanTags("http.method") shouldBe "GET"
-          span.tags("error") shouldBe TagValue.True
-          span.tags("http.status_code") shouldBe TagValue.Number(500)
+          span.tags.get(Lookups.plain("http.method")) shouldBe "GET"
+          span.metricTags.get(Lookups.plainBoolean("error")) shouldBe true
+          span.tags.get(Lookups.plainLong("http.status_code")) shouldBe 500
         }
       }
 
@@ -145,8 +145,8 @@ class ServerInstrumentationSpec extends WordSpec
     }
   }
 
-  def stringTag(span: Span.FinishedSpan)(tag: String): String = {
-    span.tags(tag).asInstanceOf[TagValue.String].string
+  def stringTag(span: Span.Finished)(tag: String): String = {
+    span.metricTags.get(Lookups.plain(tag))
   }
 
   override protected def beforeAll(): Unit = {

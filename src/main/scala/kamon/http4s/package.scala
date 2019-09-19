@@ -1,41 +1,48 @@
 package kamon
 
 import cats.effect.{Effect, Sync}
-import kamon.context.{Context, TextMap}
+import kamon.context.{Context, HttpPropagation}
 import org.http4s.{Header, Request, Response}
 import org.slf4j.LoggerFactory
 import cats.implicits._
+
+import scala.collection.mutable
 
 package object http4s {
 
   def decodeContext[F[_]:Sync](request: Request[F]): F[Context] = {
     for {
       headersTextMap <- readOnlyTextMapFromHeaders(request)
-      context <- Sync[F].delay(Kamon.contextCodec().HttpHeaders.decode(headersTextMap))
+      context <- Sync[F].delay(Kamon.defaultHttpPropagation().read(headerReaderFromMap(headersTextMap)))
     } yield context
+  }
+
+  private def headerReaderFromMap(map: Map[String, String]): HttpPropagation.HeaderReader = new HttpPropagation.HeaderReader {
+    override def read(header: String): Option[String] = map.get(header)
+    override def readAll(): Map[String, String] = map
   }
 
   def encodeContext[F[_]:Effect](ctx:Context)
                                 (request:Request[F]): F[Request[F]] = {
-    val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
-    val headers = textMap.values.map{case (key, value) => Header(key, value)}
+    val textMap = mutable.Map.empty[String, String]
+    Kamon.defaultHttpPropagation().write(ctx, headerWriterFromMap(textMap))
+    val headers = textMap.map{case (key, value) => Header(key, value)}
     Effect[F].delay(request.putHeaders(headers.toSeq: _*))
   }
 
   def encodeContextToResp[F[_]:Sync](ctx:Context)
                                     (response:Option[Response[F]]): F[Option[Response[F]]] = {
-    val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
-    val headers = textMap.values.map{case (key, value) => Header(key, value)}
+    val textMap = mutable.Map.empty[String, String]
+    Kamon.defaultHttpPropagation().write(ctx, headerWriterFromMap(textMap))
+    val headers = textMap.map{case (key, value) => Header(key, value)}
     Sync[F].delay(response.map(_.putHeaders(headers.toSeq: _*)))
   }
 
-  def readOnlyTextMapFromHeaders[F[_]:Sync](request: Request[F]): F[TextMap] = Sync[F].delay(new TextMap {
-    private val headersMap = request.headers.toList.map(h => h.name.toString -> h.value).toMap
+  def headerWriterFromMap(map: mutable.Map[String, String]): HttpPropagation.HeaderWriter = (header: String, value: String) => map.put(header, value)
 
-    override def values: Iterator[(String, String)] = headersMap.iterator
-    override def get(key: String): Option[String] = headersMap.get(key)
-    override def put(key: String, value: String): Unit = {}
-  })
+
+  def readOnlyTextMapFromHeaders[F[_]:Sync](request: Request[F]): F[Map[String, String]] =
+    Sync[F].delay(request.headers.toList.map(h => h.name.toString -> h.value).toMap)
 
   def isError(statusCode: Int): Boolean =
     statusCode >= 500 && statusCode < 600

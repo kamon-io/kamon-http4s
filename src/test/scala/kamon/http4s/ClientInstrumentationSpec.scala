@@ -21,10 +21,10 @@ import java.net.ConnectException
 import cats.effect.{IO, Resource}
 import kamon.Kamon
 import kamon.context.Context
-import kamon.context.Context.create
 import kamon.http4s.middleware.client.KamonSupport
-import kamon.trace.Span.TagValue
-import kamon.trace.{Span, SpanCustomizer}
+import kamon.tag.Lookups
+import kamon.trace.Hooks.PreStart
+import kamon.trace.Span
 import org.http4s.{HttpRoutes, Response}
 import org.http4s.client._
 import org.http4s.dsl.io._
@@ -51,9 +51,9 @@ class ClientInstrumentationSpec extends WordSpec
 
   "The Client instrumentation" should {
     "propagate the current context and generate a span inside an action and complete the ws request" in {
-      val okSpan = Kamon.buildSpan("ok-operation-span").start()
+      val okSpan = Kamon.spanBuilder("ok-operation-span").start()
 
-      Kamon.withContext(create(Span.ContextKey, okSpan)) {
+      Kamon.runWithContext(Context.of(Span.Key, okSpan)) {
         client.expect[String]("/tracing/ok").unsafeRunSync() shouldBe "ok"
       }
 
@@ -65,19 +65,19 @@ class ClientInstrumentationSpec extends WordSpec
         spanTags("span.kind") shouldBe "client"
         spanTags("component") shouldBe "http4s.client"
         spanTags("http.method") shouldBe "GET"
-        span.tags("http.status_code") shouldBe TagValue.Number(200)
+        span.tags.get(Lookups.plainLong("http.status_code")) shouldBe 200
 
-        okSpan.context.spanID == span.context.parentID
+        okSpan.id == span.parentId
       }
     }
 
     "close and finish a span even if an exception is thrown by the client" in {
-      val okSpan = Kamon.buildSpan("client exception").start()
+      val okSpan = Kamon.spanBuilder("client exception").start()
       val client: Client[IO] = KamonSupport[IO](
         Client(_ => Resource.liftF(IO.raiseError[Response[IO]](new ConnectException("Connection Refused."))))
       )
 
-      Kamon.withContext(create(Span.ContextKey, okSpan)) {
+      Kamon.runWithContext(Context.of(Span.Key, okSpan)) {
         a[ConnectException] should be thrownBy {
           client.expect[String]("/tracing/ok").unsafeRunSync()
         }
@@ -92,14 +92,14 @@ class ClientInstrumentationSpec extends WordSpec
         spanTags("component") shouldBe "http4s.client"
         spanTags("http.method") shouldBe "GET"
 
-        okSpan.context.spanID == span.context.parentID
+        okSpan.id == span.parentId
       }
     }
 
     "propagate the current context and generate a span called not-found and complete the ws request" in {
-      val notFoundSpan = Kamon.buildSpan("not-found-operation-span").start()
+      val notFoundSpan = Kamon.spanBuilder("not-found-operation-span").start()
 
-      Kamon.withContext(create(Span.ContextKey, notFoundSpan)) {
+      Kamon.runWithContext(Context.of(Span.Key, notFoundSpan)) {
         client.expect[String]("/tracing/not-found").attempt.unsafeRunSync().isLeft shouldBe true
       }
 
@@ -111,16 +111,16 @@ class ClientInstrumentationSpec extends WordSpec
         spanTags("span.kind") shouldBe "client"
         spanTags("component") shouldBe "http4s.client"
         spanTags("http.method") shouldBe "GET"
-        span.tags("http.status_code") shouldBe TagValue.Number(404)
+        span.tags.get(Lookups.plainLong("http.status_code")) shouldBe 404
 
-        notFoundSpan.context.spanID == span.context.parentID
+        notFoundSpan.id == span.parentId
       }
     }
 
     "propagate the current context and generate a span with error and complete the ws request" in {
-      val errorSpan = Kamon.buildSpan("error-operation-span").start()
+      val errorSpan = Kamon.spanBuilder("error-operation-span").start()
 
-      Kamon.withContext(create(Span.ContextKey, errorSpan)) {
+      Kamon.runWithContext(Context.of(Span.Key, errorSpan)) {
         client.expect[String]("/tracing/error").attempt.unsafeRunSync().isLeft shouldBe true
       }
 
@@ -132,22 +132,22 @@ class ClientInstrumentationSpec extends WordSpec
         spanTags("span.kind") shouldBe "client"
         spanTags("component") shouldBe "http4s.client"
         spanTags("http.method") shouldBe "GET"
-        span.tags("error") shouldBe TagValue.True
-        span.tags("http.status_code") shouldBe TagValue.Number(500)
+        span.metricTags.get(Lookups.plainBoolean("error")) shouldBe true
+        span.tags.get(Lookups.plainLong("http.status_code")) shouldBe 500
 
-        errorSpan.context.spanID == span.context.parentID
+        errorSpan.id == span.parentId
       }
     }
 
-    "propagate the current context and pickup a SpanCustomizer and apply it to the new spans and complete the ws request" in {
-      val okSpan = Kamon.buildSpan("ok-operation-span").start()
+    "propagate the current context and pickup a PreStart hook and apply it to the new spans and complete the ws request" in {
+      val okSpan = Kamon.spanBuilder("ok-operation-span").start()
 
       val customizedOperationName = "customized-operation-name"
 
-      val context = Context.create(Span.ContextKey, okSpan)
-        .withKey(SpanCustomizer.ContextKey, SpanCustomizer.forOperationName(customizedOperationName))
+      val context = Context.of(Span.Key, okSpan)
+        .withEntry(PreStart.Key, PreStart.updateOperationName(customizedOperationName))
 
-      Kamon.withContext(context) {
+      Kamon.runWithContext(context) {
         client.expect[String]("/tracing/ok").unsafeRunSync shouldBe "ok"
       }
 
@@ -159,15 +159,15 @@ class ClientInstrumentationSpec extends WordSpec
         spanTags("span.kind") shouldBe "client"
         spanTags("component") shouldBe "http4s.client"
         spanTags("http.method") shouldBe "GET"
-        span.tags("http.status_code") shouldBe TagValue.Number(200)
+        span.tags.get(Lookups.plainLong("http.status_code")) shouldBe 200
 
-        okSpan.context.spanID == span.context.parentID
+        okSpan.id == span.parentId
       }
     }
   }
 
-  def stringTag(span: Span.FinishedSpan)(tag: String): String = {
-    span.tags(tag).asInstanceOf[TagValue.String].string
+  def stringTag(span: Span.Finished)(tag: String): String = {
+    span.metricTags.get(Lookups.plain(tag))
   }
 
   override protected def beforeAll(): Unit =

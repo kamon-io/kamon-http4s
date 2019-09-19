@@ -18,7 +18,9 @@ package kamon.http4s
 
 import kamon.Kamon
 import kamon.metric.MeasurementUnit._
-import kamon.metric.{Histogram, HistogramMetric, RangeSampler}
+import kamon.metric.{Histogram, RangeSampler}
+import kamon.metric.Metric.{Histogram => HistogramMetric}
+import kamon.tag.TagSet
 
 
 object Metrics {
@@ -39,12 +41,12 @@ object Metrics {
 
   object GeneralMetrics {
     def apply(): GeneralMetrics = {
-      val generalTags = Map("component" -> "http4s-server")
+      val generalTags = TagSet.of("component", "http4s-server")
       new GeneralMetrics(
-        Kamon.rangeSampler("active-requests").refine(generalTags),
-        Kamon.histogram("abnormal-termination").refine(generalTags),
-        Kamon.histogram("service-errors").refine(generalTags),
-        Kamon.histogram("headers-times").refine(generalTags))
+        Kamon.rangeSampler("active-requests").withTags(generalTags),
+        Kamon.histogram("abnormal-termination").withTags(generalTags),
+        Kamon.histogram("service-errors").withTags(generalTags),
+        Kamon.histogram("headers-times").withTags(generalTags))
     }
   }
 
@@ -55,8 +57,8 @@ object Metrics {
     */
   case class ResponseTimeMetrics(responseTimeMetric:HistogramMetric) {
     def forStatusCode(statusCode: String): Histogram = {
-      val responseMetricsTags = Map("component" -> "http4s-server", "status-code" -> statusCode)
-      responseTimeMetric.refine(responseMetricsTags)
+      val responseMetricsTags = TagSet.from(Map("component" -> "http4s-server", "status-code" -> statusCode))
+      responseTimeMetric.withTags(responseMetricsTags)
     }
   }
 
@@ -74,8 +76,8 @@ object Metrics {
 
   case class RequestTimeMetrics(requestTimeMetric:HistogramMetric) {
     def forMethod(method: String): Histogram = {
-      val requestMetricsTags = Map("component" -> "http4s-server", "method" -> method)
-      requestTimeMetric.refine(requestMetricsTags)
+      val requestMetricsTags = TagSet.from(Map("component" -> "http4s-server", "method" -> method))
+      requestTimeMetric.withTags(requestMetricsTags)
     }
   }
 

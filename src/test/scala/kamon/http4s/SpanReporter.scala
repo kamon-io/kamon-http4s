@@ -17,18 +17,18 @@
 package kamon.http4s
 
 import kamon.Kamon
+import kamon.module.Module.Registration
 import kamon.testkit.{Reconfigure, TestSpanReporter}
-import kamon.util.Registration
 
 trait SpanReporter extends Reconfigure {
 
   @volatile var registration: Registration = _
-  val reporter = new TestSpanReporter()
+  val reporter = new TestSpanReporter.BufferingSpanReporter()
 
   def start(): Unit = {
     enableFastSpanFlushing()
     sampleAlways()
-    registration = Kamon.addReporter(reporter)
+    registration = Kamon.registerModule("test-reporter", reporter)
   }
 
    def stop(): Unit = {

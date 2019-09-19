@@ -13,13 +13,14 @@
  * =========================================================================================
  */
 
-val kamonCore         = "io.kamon"    %% "kamon-core"             % "1.1.3"
-val kamonTestkit      = "io.kamon"    %% "kamon-testkit"          % "1.1.3"
+val kamonCore         = "io.kamon"    %% "kamon-core"             % "2.0.0"
+val kamonTestkit      = "io.kamon"    %% "kamon-testkit"          % "2.0.0"
 
-val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.20.0"
-val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.20.0"
-val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.20.0"
+val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.20.10"
+val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.20.10"
+val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.20.10"
 
+Test / parallelExecution := false
 
 lazy val root = (project in file("."))
   .settings(Seq(

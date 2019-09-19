@@ -19,7 +19,6 @@ package kamon.http4s
 import cats.effect._
 import kamon.http4s.Metrics.{GeneralMetrics, ResponseTimeMetrics}
 import kamon.http4s.middleware.server.KamonSupport
-import kamon.testkit.MetricInspection
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
 import org.http4s.server.Server
@@ -28,6 +27,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
 import org.scalatest.{Matchers, OptionValues, WordSpec}
 import cats.implicits._
+import kamon.testkit.InstrumentInspection
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.Client
 
@@ -38,7 +38,7 @@ class HttpMetricsSpec extends WordSpec
   with Matchers
   with Eventually
   with SpanSugar
-  with MetricInspection
+  with InstrumentInspection.Syntax
   with OptionValues
  {
 
