@@ -21,6 +21,8 @@ val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.20.11"
 val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.20.11"
 val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.20.11"
 
+val kanela            = "io.kamon"    %  "kanela-agent"           % "1.0.0"
+
 
 lazy val root = (project in file("."))
   .settings(Seq(
@@ -33,5 +35,5 @@ lazy val root = (project in file("."))
   .settings(
     libraryDependencies ++=
       compileScope(kamonCore, kamonCommon) ++
-      providedScope(server, client, dsl) ++
+      providedScope(server, client, dsl, kanela) ++
       testScope(scalatest, kamonTestkit, logbackClassic))
