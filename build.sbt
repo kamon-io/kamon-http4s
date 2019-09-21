@@ -1,5 +1,5 @@
 /* =========================================================================================
- * Copyright © 2013-2018 the kamon project <http://kamon.io/>
+ * Copyright © 2013-2019 the kamon project <http://kamon.io/>
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of the License at
@@ -14,19 +14,19 @@
  */
 
 val kamonCore         = "io.kamon"    %% "kamon-core"                     % "2.0.0"
-val kamonTestkit      = "io.kamon"    %% "kamon-testkit"                  % "2.0.0-M4"
+val kamonTestkit      = "io.kamon"    %% "kamon-testkit"                  % "2.0.0"
 val kamonCommon       = "io.kamon"    %% "kamon-instrumentation-common"   % "2.0.0"
 
-val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.20.10"
-val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.20.10"
-val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.20.10"
+val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.20.11"
+val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.20.11"
+val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.20.11"
 
 
 lazy val root = (project in file("."))
   .settings(Seq(
       name := "kamon-http4s",
       scalaVersion := "2.12.6",
-      crossScalaVersions := Seq("2.11.12", "2.12.6")))
+      crossScalaVersions := Seq("2.11.12", "2.12.8")))
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
   .settings(scalacOptions ++= Seq("-Ypartial-unification", "-language:higherKinds"))
