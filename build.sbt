@@ -17,9 +17,9 @@ val kamonCore         = "io.kamon"    %% "kamon-core"                     % "2.0
 val kamonTestkit      = "io.kamon"    %% "kamon-testkit"                  % "2.0.0"
 val kamonCommon       = "io.kamon"    %% "kamon-instrumentation-common"   % "2.0.0"
 
-val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.20.11"
-val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.20.11"
-val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.20.11"
+val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.21.0-M5"
+val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.21.0-M5"
+val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.21.0-M5"
 
 val kanela            = "io.kamon"    %  "kanela-agent"           % "1.0.0"
 
@@ -27,11 +27,14 @@ val kanela            = "io.kamon"    %  "kanela-agent"           % "1.0.0"
 lazy val root = (project in file("."))
   .settings(Seq(
       name := "kamon-http4s",
-      scalaVersion := "2.12.6",
-      crossScalaVersions := Seq("2.11.12", "2.12.8")))
+      scalaVersion := "2.13.1",
+      crossScalaVersions := Seq("2.12.10", "2.13.1")))
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
-  .settings(scalacOptions ++= Seq("-Ypartial-unification", "-language:higherKinds"))
+  .settings(scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 12)) => Seq("-Ypartial-unification", "-language:higherKinds")
+    case _ => "-language:higherKinds" :: Nil
+  }))
   .settings(
     libraryDependencies ++=
       compileScope(kamonCore, kamonCommon) ++
