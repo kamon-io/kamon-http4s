@@ -55,6 +55,7 @@ class ServerInstrumentationSpec extends WordSpec
           case GET -> Root / "tracing" / "ok" =>  Ok("ok")
           case GET -> Root / "tracing" / "error"  => InternalServerError("error!")
           case GET -> Root / "tracing" / "errorinternal"  => throw new RuntimeException("ble")
+          case GET -> Root / "tracing" / name / "ok" =>  Ok(s"ok $name")
         }
       ,"", 0).orNotFound)
     .resource
@@ -158,5 +159,23 @@ class ServerInstrumentationSpec extends WordSpec
       request *> test
     }
 
+    "handle path parameter" in withServerAndClient { (server, client) =>
+      val request: IO[(String, Headers)] =
+        getResponse("/tracing/bazz/ok")(server, client)
+      val test = IO {
+        eventually(timeout(5.seconds)) {
+          val span = testSpanReporter.nextSpan().value
+
+          span.operationName shouldBe "/tracing/:name/ok"
+          span.kind shouldBe Span.Kind.Server
+          span.hasError shouldBe false
+          span.metricTags.get(plain("component")) shouldBe "http4s.server"
+          span.metricTags.get(plain("http.method")) shouldBe "GET"
+          span.metricTags.get(plainLong("http.status_code")) shouldBe 200
+        }
+      }
+
+      request *> test
+    }
   }
 }
