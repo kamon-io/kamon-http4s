@@ -17,6 +17,7 @@ Supported releases and dependencies are shown below.
 |  1.0.8-1.0.10 | stable | 1.8+ | 2.11, 2.12 | 0.18.x
 |  1.0.13 | stable | 1.8+ | 2.11, 2.12 | 0.20.x
 |  2.0.0 | stable | 1.8+ | 2.11, 2.12 | 0.20.x
+|  2.0.1 | experimental | 1.8+ | 2.12, 2.13 | 0.21.x
 
 
 To get started with SBT, simply add the following to your `build.sbt`
