@@ -13,15 +13,13 @@
  * =========================================================================================
  */
 
-val kamonCore         = "io.kamon"    %% "kamon-core"                     % "2.0.0"
-val kamonTestkit      = "io.kamon"    %% "kamon-testkit"                  % "2.0.0"
-val kamonCommon       = "io.kamon"    %% "kamon-instrumentation-common"   % "2.0.0"
+val kamonCore         = "io.kamon"    %% "kamon-core"                     % "2.0.4"
+val kamonTestkit      = "io.kamon"    %% "kamon-testkit"                  % "2.0.4"
+val kamonCommon       = "io.kamon"    %% "kamon-instrumentation-common"   % "2.0.1"
 
 val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.21.0-M5"
 val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.21.0-M5"
 val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.21.0-M5"
-
-val kanela            = "io.kamon"    %  "kanela-agent"           % "1.0.0"
 
 
 lazy val root = (project in file("."))
@@ -38,5 +36,5 @@ lazy val root = (project in file("."))
   .settings(
     libraryDependencies ++=
       compileScope(kamonCore, kamonCommon) ++
-      providedScope(server, client, dsl, kanela) ++
+      providedScope(server, client, dsl) ++
       testScope(scalatest, kamonTestkit, logbackClassic))
