@@ -41,7 +41,6 @@ object KamonSupport {
                                 (implicit F: Sync[F]): OptionT[F, Response[F]] = OptionT {
     getHandler(instrumentation)(request).use { handler =>
       for {
-        _               <- setOperationName(request, handler, instrumentation.settings)
         resOrUnhandled  <- service(request).value.attempt
         respWithContext <- kamonServiceHandler(handler, resOrUnhandled, instrumentation.settings)
       } yield respWithContext
@@ -86,17 +85,5 @@ object KamonSupport {
           Some(a)
         }
     }
-
-
-  private def setOperationName[F[_]](
-                                      request: Request[F],
-                                      handler: RequestHandler,
-                                      settings: HttpServerInstrumentation.Settings)(implicit F: Sync[F]): F[Unit] =
-    F.delay {
-      val operationName = Http4s.nameGenerator
-        .name(buildRequestMessage(request))
-        .getOrElse(settings.defaultOperationName)
-      handler.span.name(operationName)
-    } *> F.unit
 
 }
