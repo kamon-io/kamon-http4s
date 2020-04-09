@@ -26,8 +26,7 @@ lazy val root = (project in file("."))
   .settings(Seq(
       name := "kamon-http4s",
       scalaVersion := "2.13.1",
-      crossScalaVersions := Seq("2.12.11", "2.13.1")),
-      fork := true)
+      crossScalaVersions := Seq("2.12.11", "2.13.1")))
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
   .settings(scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
