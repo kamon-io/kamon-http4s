@@ -8,23 +8,24 @@
 
 The `kamon-http4s` module brings traces and metrics to your [http4s][4] based applications.
 
-Kamon <b>kamon-http4s</b> is currently available for Scala 2.11 and 2.12.
+Kamon <b>kamon-http4s</b> is currently available for Scala 2.12 and 2.13.
 
 Supported releases and dependencies are shown below.
 
 | kamon-http4s  | status | jdk  | scala | http4s            
 |:------:|:------:|:----:|--------------:|-------
-|  1.0.8-1.0.10 | stable | 1.8+ | 2.11, 2.12 | 0.18.x
-|  1.0.13 | stable | 1.8+ | 2.11, 2.12 | 0.20.x
-|  2.0.0 | stable | 1.8+ | 2.11, 2.12 | 0.20.x
-|  2.0.1 | stable | 1.8+ | 2.12, 2.13 | 0.21.x
+|  1.0.8-1.0.10 | stable | 8+ | 2.11, 2.12 | 0.18.x
+|  1.0.13 | stable | 8+ | 2.11, 2.12 | 0.20.x
+|  2.0.0 | stable | 8+ | 2.11, 2.12 | 0.20.x
+|  2.0.1 | stable | 8+ | 2.12, 2.13 | 0.21.x
+|  2.1.0 | stable | 8+ | 2.12, 2.13 | 0.21.x
 
 
 To get started with SBT, simply add the following to your `build.sbt`
 file:
 
 ```scala
-libraryDependencies += "io.kamon" %% "kamon-http4s" % "2.0.0"
+libraryDependencies += "io.kamon" %% "kamon-http4s" % "2.1.0"
 ```
 
 ## Metrics and Tracing for http4s in 2 steps
@@ -66,26 +67,18 @@ object GoogleService {
 ### Step 1: Add the Kamon Libraries
 ```scala
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-core" % "1.1.2",
-  "io.kamon" %% "kamon-system-metrics" % "1.0.1",
-  "io.kamon" %% "kamon-prometheus" % "1.0.0",
-  "io.kamon" %% "kamon-http4s" % "1.0.7",
-  "io.kamon" %% "kamon-zipkin" % "1.0.1",
-  "io.kamon" %% "kamon-jaeger" % "1.0.2"
+  "io.kamon" %% "kamon-core" % "2.1.0",
+  "io.kamon" %% "kamon-system-metrics" % "2.1.0",
+  "io.kamon" %% "kamon-prometheus" % "2.1.0",
+  "io.kamon" %% "kamon-http4s" % "2.1.0",
+  "io.kamon" %% "kamon-zipkin" % "2.1.0",
+  "io.kamon" %% "kamon-jaeger" % "2.1.0"
 )
 ```
 
 ### Step 2: Start Reporting your Data
 
-The last step in the process: start reporting your data! You can register as many reporters as you want by using the
-`Kamon.addReporter(...)` function:
-
-```scala
-Kamon.addReporter(new PrometheusReporter())
-Kamon.addReporter(new ZipkinReporter())
-Kamon.addReporter(new Jaeger())
-```
-
+Since version 2.0, Kamon reporters are started automatically through their default configuration.
 Now you can simply `sbt run` the application and after a few seconds you will get the Prometheus metrics
 exposed on <http://localhost:9095/> and message traces sent to Zipkin! The default configuration publishes the Prometheus
 endpoint on port 9095 and assumes that you have a Zipkin instance running locally on port 9411 but you can change these
