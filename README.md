@@ -18,14 +18,13 @@ Supported releases and dependencies are shown below.
 |  1.0.13 | stable | 8+ | 2.11, 2.12 | 0.20.x
 |  2.0.0 | stable | 8+ | 2.11, 2.12 | 0.20.x
 |  2.0.1 | stable | 8+ | 2.12, 2.13 | 0.21.x
-|  2.1.0 | stable | 8+ | 2.12, 2.13 | 0.21.x
 
 
 To get started with SBT, simply add the following to your `build.sbt`
 file:
 
 ```scala
-libraryDependencies += "io.kamon" %% "kamon-http4s" % "2.1.0"
+libraryDependencies += "io.kamon" %% "kamon-http4s" % "2.0.1"
 ```
 
 ## Metrics and Tracing for http4s in 2 steps
@@ -70,7 +69,7 @@ libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-core" % "2.1.0",
   "io.kamon" %% "kamon-system-metrics" % "2.1.0",
   "io.kamon" %% "kamon-prometheus" % "2.1.0",
-  "io.kamon" %% "kamon-http4s" % "2.1.0",
+  "io.kamon" %% "kamon-http4s" % "2.0.1",
   "io.kamon" %% "kamon-zipkin" % "2.1.0",
   "io.kamon" %% "kamon-jaeger" % "2.1.0"
 )
