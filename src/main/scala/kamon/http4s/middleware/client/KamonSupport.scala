@@ -18,7 +18,7 @@
 package kamon.http4s
 package middleware.client
 
-import cats.effect.{Effect, Resource}
+import cats.effect.{Sync, Resource}
 import cats.implicits._
 import com.typesafe.config.Config
 import kamon.Kamon
@@ -39,7 +39,7 @@ object KamonSupport {
   Kamon.onReconfigure(newConfig => _instrumentation = instrumentation(newConfig))
 
 
-  def apply[F[_]](underlying: Client[F])(implicit F:Effect[F]): Client[F] = Client { request =>
+  def apply[F[_]](underlying: Client[F])(implicit F:Sync[F]): Client[F] = Client { request =>
 
     for {
       ctx <- Resource.liftF(F.delay(Kamon.currentContext()))
@@ -52,7 +52,7 @@ object KamonSupport {
                                (request: Request[F])
                                (ctx: Context)
                                (instrumentation: HttpClientInstrumentation)
-                               (implicit F:Effect[F]): Resource[F, Response[F]] =
+                               (implicit F:Sync[F]): Resource[F, Response[F]] =
     for {
       requestHandler  <- Resource.liftF(F.delay(instrumentation.createHandler(getRequestBuilder(request), ctx)))
       response        <- underlying.run(requestHandler.request).attempt
@@ -63,7 +63,7 @@ object KamonSupport {
                        response: Either[Throwable, Response[F]],
                        requestHandler: HttpClientInstrumentation.RequestHandler[Request[F]],
                        settings: HttpClientInstrumentation.Settings
-                     )(implicit F:Effect[F]): F[Response[F]] =
+                     )(implicit F:Sync[F]): F[Response[F]] =
       response match {
         case Right(res) =>
           if(res.status.code == 404) requestHandler.span.name(settings.defaultOperationName)
