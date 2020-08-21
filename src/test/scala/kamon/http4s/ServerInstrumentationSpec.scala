@@ -16,7 +16,7 @@
 
 package kamon.http4s
 
-import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
+import cats.effect.{ContextShift, IO, Sync, Timer}
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.trace.Span
 import org.http4s.{Headers, HttpRoutes}
@@ -66,7 +66,7 @@ class ServerInstrumentationSpec extends WordSpec
   def withServerAndClient[A](f: (Server[IO], Client[IO]) => IO[A]): A =
     (srv, client).tupled.use(f.tupled).unsafeRunSync()
 
-  private def getResponse[F[_]: ConcurrentEffect](path: String)(server: Server[F], client: Client[F]): F[(String, Headers)] = {
+  private def getResponse[F[_]: Sync](path: String)(server: Server[F], client: Client[F]): F[(String, Headers)] = {
     client.get(s"http://127.0.0.1:${server.address.getPort}$path"){ r =>
       r.bodyAsText.compile.toList.map(_.mkString).map(_ -> r.headers)
     }
