@@ -56,17 +56,15 @@ object KamonSupport {
     for {
       requestHandler  <- Resource.liftF(F.delay(instrumentation.createHandler(getRequestBuilder(request), ctx)))
       response        <- underlying.run(requestHandler.request).attempt
-      trackedResponse <- Resource.liftF(handleResponse(response, requestHandler, instrumentation.settings))
+      trackedResponse <- Resource.liftF(handleResponse(response, requestHandler))
     } yield trackedResponse
 
   def handleResponse[F[_]](
                        response: Either[Throwable, Response[F]],
                        requestHandler: HttpClientInstrumentation.RequestHandler[Request[F]],
-                       settings: HttpClientInstrumentation.Settings
                      )(implicit F:Sync[F]): F[Response[F]] =
       response match {
         case Right(res) =>
-          if(res.status.code == 404) requestHandler.span.name(settings.defaultOperationName)
           requestHandler.processResponse(getResponseBuilder(res))
           F.delay(res)
         case Left(error) =>

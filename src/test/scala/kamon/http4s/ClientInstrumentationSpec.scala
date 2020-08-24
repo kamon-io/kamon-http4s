@@ -104,8 +104,7 @@ class ClientInstrumentationSpec extends WordSpec
 
       eventually(timeout(2 seconds)) {
         val span = testSpanReporter().nextSpan().value
-        //TODO what should be client not found oper name, settings provide no default for clients
-        span.operationName shouldBe "http.client.request"
+        span.operationName shouldBe "/tracing/not-found"
         span.kind shouldBe Span.Kind.Client
         span.metricTags.get(plain("component")) shouldBe "http4s.client"
         span.metricTags.get(plain("http.method")) shouldBe "GET"
