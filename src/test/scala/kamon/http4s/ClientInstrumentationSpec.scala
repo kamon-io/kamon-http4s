@@ -19,6 +19,7 @@ package kamon.http4s
 import java.net.ConnectException
 
 import cats.effect.{IO, Resource}
+import cats.effect.unsafe.implicits.global
 import kamon.Kamon
 import kamon.http4s.middleware.client.KamonSupport
 import kamon.testkit.TestSpanReporter
@@ -54,7 +55,8 @@ class ClientInstrumentationSpec extends WordSpec
       val okSpan = Kamon.spanBuilder("ok-operation-span").start()
 
       Kamon.runWithSpan(okSpan) {
-        client.expect[String]("/tracing/ok").unsafeRunSync() shouldBe "ok"
+        val result = client.expect[String]("/tracing/ok").unsafeRunSync() 
+        result shouldBe "ok"
       }
 
       eventually(timeout(2 seconds)) {
@@ -74,7 +76,7 @@ class ClientInstrumentationSpec extends WordSpec
     "close and finish a span even if an exception is thrown by the client" in {
       val okSpan = Kamon.spanBuilder("client-exception").start()
       val client: Client[IO] = KamonSupport[IO](
-        Client(_ => Resource.liftF(IO.raiseError[Response[IO]](new ConnectException("Connection Refused."))))
+        Client(_ => Resource.eval(IO.raiseError[Response[IO]](new ConnectException("Connection Refused."))))
       )
 
       Kamon.runWithSpan(okSpan) {
