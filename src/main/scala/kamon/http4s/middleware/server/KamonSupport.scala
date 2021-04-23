@@ -32,7 +32,7 @@ object KamonSupport {
     val httpServerConfig = Kamon.config().getConfig("kamon.instrumentation.http4s.server")
     val instrumentation = HttpServerInstrumentation.from(httpServerConfig, "http4s.server", interface, port)
 
-    Kleisli(kamonService[F](service, instrumentation)(_))
+    Kleisli((request: Request[F]) => kamonService[F](service, instrumentation)(request))
   }
 
 
@@ -56,7 +56,7 @@ object KamonSupport {
 
   private def getHandler[F[_]](instrumentation: HttpServerInstrumentation)(request: Request[F])(implicit F: Sync[F]): Resource[F, RequestHandler] =
     for {
-      handler <- Resource.liftF(F.delay(instrumentation.createHandler(buildRequestMessage(request))))
+      handler <- Resource.eval(F.delay(instrumentation.createHandler(buildRequestMessage(request))))
       _       <- processRequest(handler)
       _       <- withContext(handler)
     } yield handler

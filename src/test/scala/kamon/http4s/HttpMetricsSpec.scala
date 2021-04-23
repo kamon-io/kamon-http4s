@@ -17,6 +17,7 @@
 package kamon.http4s
 
 import cats.effect._
+import cats.effect.unsafe.implicits.global
 import kamon.testkit.InstrumentInspection
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
@@ -42,11 +43,8 @@ class HttpMetricsSpec extends WordSpec
   with OptionValues
  {
 
-  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-  implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
-
   val srv =
-    BlazeServerBuilder[IO]
+    BlazeServerBuilder[IO](global.compute)
       .bindLocal(43567)
       .withHttpApp(KamonSupport(HttpRoutes.of[IO] {
         case GET -> Root / "tracing" / "ok" =>  Ok("ok")
@@ -59,13 +57,13 @@ class HttpMetricsSpec extends WordSpec
     BlazeClientBuilder[IO](ExecutionContext.global).withMaxTotalConnections(10).resource
 
    val metrics =
-    Resource.liftF(IO(HttpServerMetrics.of("http4s.server", "/127.0.0.1", 43567)))
+    Resource.eval(IO(HttpServerMetrics.of("http4s.server", "/127.0.0.1", 43567)))
 
 
-  def withServerAndClient[A](f: (Server[IO], Client[IO], HttpServerMetrics.HttpServerInstruments) => IO[A]): A =
+  def withServerAndClient[A](f: (Server, Client[IO], HttpServerMetrics.HttpServerInstruments) => IO[A]): A =
    (srv, client, metrics).tupled.use(f.tupled).unsafeRunSync()
 
-  private def get[F[_]: Sync](path: String)(server: Server[F], client: Client[F]): F[String] = {
+  private def get[F[_]: Concurrent](path: String)(server: Server, client: Client[F]): F[String] = {
     client.expect[String](s"http://127.0.0.1:${server.address.getPort}$path")
   }
 
