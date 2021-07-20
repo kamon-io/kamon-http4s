@@ -42,7 +42,7 @@ object KamonSupport {
   def apply[F[_]](underlying: Client[F])(implicit F:Sync[F]): Client[F] = Client { request =>
 
     for {
-      ctx <- Resource.liftF(F.delay(Kamon.currentContext()))
+      ctx <- Resource.eval(F.delay(Kamon.currentContext()))
       k   <- kamonClient(underlying)(request)(ctx)(_instrumentation)
     } yield k
   }
@@ -54,9 +54,9 @@ object KamonSupport {
                                (instrumentation: HttpClientInstrumentation)
                                (implicit F:Sync[F]): Resource[F, Response[F]] =
     for {
-      requestHandler  <- Resource.liftF(F.delay(instrumentation.createHandler(getRequestBuilder(request), ctx)))
+      requestHandler  <- Resource.eval(F.delay(instrumentation.createHandler(getRequestBuilder(request), ctx)))
       response        <- underlying.run(requestHandler.request).attempt
-      trackedResponse <- Resource.liftF(handleResponse(response, requestHandler))
+      trackedResponse <- Resource.eval(handleResponse(response, requestHandler))
     } yield trackedResponse
 
   def handleResponse[F[_]](

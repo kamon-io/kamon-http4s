@@ -56,7 +56,7 @@ object KamonSupport {
 
   private def getHandler[F[_]](instrumentation: HttpServerInstrumentation)(request: Request[F])(implicit F: Sync[F]): Resource[F, RequestHandler] =
     for {
-      handler <- Resource.liftF(F.delay(instrumentation.createHandler(buildRequestMessage(request))))
+      handler <- Resource.eval(F.delay(instrumentation.createHandler(buildRequestMessage(request))))
       _       <- processRequest(handler)
       _       <- withContext(handler)
     } yield handler
