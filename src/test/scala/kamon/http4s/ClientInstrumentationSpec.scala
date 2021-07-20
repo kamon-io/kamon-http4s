@@ -74,7 +74,7 @@ class ClientInstrumentationSpec extends WordSpec
     "close and finish a span even if an exception is thrown by the client" in {
       val okSpan = Kamon.spanBuilder("client-exception").start()
       val client: Client[IO] = KamonSupport[IO](
-        Client(_ => Resource.liftF(IO.raiseError[Response[IO]](new ConnectException("Connection Refused."))))
+        Client(_ => Resource.eval(IO.raiseError[Response[IO]](new ConnectException("Connection Refused."))))
       )
 
       Kamon.runWithSpan(okSpan) {

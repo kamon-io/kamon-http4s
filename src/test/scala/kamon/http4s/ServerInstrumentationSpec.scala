@@ -17,24 +17,24 @@
 package kamon.http4s
 
 import cats.effect.{ContextShift, IO, Sync, Timer}
+import cats.implicits._
 import kamon.http4s.middleware.server.KamonSupport
+import kamon.tag.Lookups.{plain, plainLong}
+import kamon.testkit.TestSpanReporter
 import kamon.trace.Span
-import org.http4s.{Headers, HttpRoutes}
+import org.http4s.blaze.client.BlazeClientBuilder
+import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.client.Client
-import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.dsl.io._
-import org.http4s.server.{Server}
-import org.http4s.server.blaze.BlazeServerBuilder
+import org.http4s.implicits._
+import org.http4s.server.Server
+import org.http4s.{Headers, HttpRoutes}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
+import org.typelevel.ci.CIString
 
 import scala.concurrent.ExecutionContext
-import org.http4s.implicits._
-import cats.implicits._
-import kamon.testkit.TestSpanReporter
-import kamon.tag.Lookups.{plain, plainLong}
-import org.http4s.util.CaseInsensitiveString
 
 class ServerInstrumentationSpec extends WordSpec
   with Matchers
@@ -48,9 +48,8 @@ class ServerInstrumentationSpec extends WordSpec
   implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
 
   val srv =
-    BlazeServerBuilder[IO]
+    BlazeServerBuilder[IO](ExecutionContext.global)
       .bindAny()
-      .withExecutionContext(ExecutionContext.global)
       .withHttpApp(KamonSupport(HttpRoutes.of[IO] {
           case GET -> Root / "tracing" / "ok" =>  Ok("ok")
           case GET -> Root / "tracing" / "error"  => InternalServerError("error!")
@@ -63,19 +62,19 @@ class ServerInstrumentationSpec extends WordSpec
   val client =
     BlazeClientBuilder[IO](ExecutionContext.global).resource
 
-  def withServerAndClient[A](f: (Server[IO], Client[IO]) => IO[A]): A =
+  def withServerAndClient[A](f: (Server, Client[IO]) => IO[A]): A =
     (srv, client).tupled.use(f.tupled).unsafeRunSync()
 
-  private def getResponse[F[_]: Sync](path: String)(server: Server[F], client: Client[F]): F[(String, Headers)] = {
-    client.get(s"http://127.0.0.1:${server.address.getPort}$path"){ r =>
-      r.bodyAsText.compile.toList.map(_.mkString).map(_ -> r.headers)
+  private def getResponse[F[_]: Sync](path: String)(server: Server, client: Client[F]): F[(String, Headers)] = {
+    client.get(s"http://127.0.0.1:${server.address.getPort}$path") { r =>
+      r.bodyText.compile.toList.map(_.mkString).map(_ -> r.headers)
     }
   }
 
   "The Server instrumentation" should {
     "propagate the current context and respond to the ok action" in withServerAndClient { (server, client) =>
       val request = getResponse("/tracing/ok")(server, client).map { case (body, headers) =>
-        headers.exists(_.name == CaseInsensitiveString("trace-id")) shouldBe true
+        headers.get(CIString("trace-id")).nonEmpty shouldBe true
         body should startWith("ok")
       }
 
@@ -96,7 +95,7 @@ class ServerInstrumentationSpec extends WordSpec
 
     "propagate the current context and respond to the not-found action" in withServerAndClient { (server, client) =>
       val request = getResponse("/tracing/not-found")(server, client).map { case (body, headers) =>
-        headers.exists(_.name == CaseInsensitiveString("trace-id")) shouldBe true
+        headers.get(CIString("trace-id")).nonEmpty shouldBe true
       }
 
       val test = IO {
@@ -116,7 +115,7 @@ class ServerInstrumentationSpec extends WordSpec
 
     "propagate the current context and respond to the error action" in withServerAndClient { (server, client) =>
       val request = getResponse("/tracing/error")(server, client).map { case (body, headers) =>
-        headers.exists(_.name == CaseInsensitiveString("trace-id")) shouldBe true
+        headers.get(CIString("trace-id")).nonEmpty shouldBe true
         body should startWith("error!")
       }
 
@@ -139,7 +138,7 @@ class ServerInstrumentationSpec extends WordSpec
       val request = getResponse("/tracing/errorinternal")(server, client)
       /* TODO serviceErrorHandler kicks in and rewrites response, loosing trace information
         .map { case (body, headers) =>
-          headers.exists(_.name == CaseInsensitiveString("trace-id")) shouldBe true
+          headers.exists(_.name == CIString("trace-id")) shouldBe true
         }
       */
 

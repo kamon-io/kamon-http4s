@@ -13,20 +13,20 @@
  * =========================================================================================
  */
 
-val kamonCore         = "io.kamon"    %% "kamon-core"                     % "2.1.0"
-val kamonTestkit      = "io.kamon"    %% "kamon-testkit"                  % "2.1.0"
-val kamonCommon       = "io.kamon"    %% "kamon-instrumentation-common"   % "2.1.0"
+val kamonCore         = "io.kamon"    %% "kamon-core"                     % "2.2.2"
+val kamonTestkit      = "io.kamon"    %% "kamon-testkit"                  % "2.2.2"
+val kamonCommon       = "io.kamon"    %% "kamon-instrumentation-common"   % "2.2.2"
 
-val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.21.3"
-val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.21.3"
-val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.21.3"
+val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.22.0-RC1"
+val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.22.0-RC1"
+val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.22.0-RC1"
 
 
 lazy val root = (project in file("."))
   .settings(Seq(
       name := "kamon-http4s",
-      scalaVersion := "2.13.1",
-      crossScalaVersions := Seq("2.12.11", "2.13.1")))
+      scalaVersion := "2.13.6",
+      crossScalaVersions := Seq("2.12.14", "2.13.6")))
   .settings(resolvers += Resolver.bintrayRepo("kamon-io", "snapshots"))
   .settings(resolvers += Resolver.mavenLocal)
   .settings(scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
