@@ -38,13 +38,10 @@ object KamonSupport {
 
   Kamon.onReconfigure(newConfig => _instrumentation = instrumentation(newConfig))
 
-
-  def apply[F[_]](underlying: Client[F])(implicit F:Sync[F]): Client[F] = Client { request =>
-
-    for {
-      ctx <- Resource.eval(F.delay(Kamon.currentContext()))
-      k   <- kamonClient(underlying)(request)(ctx)(_instrumentation)
-    } yield k
+  def apply[F[_]](underlying: Client[F])(implicit F: Sync[F]): Client[F] = Client { request =>
+    // this needs to run on the same thread as the caller, so can't be suspended in F
+    val ctx = Kamon.currentContext()
+    kamonClient(underlying)(request)(ctx)(_instrumentation)
   }
 
 

@@ -13,13 +13,13 @@
  * =========================================================================================
  */
 
-val kamonCore         = "io.kamon"    %% "kamon-core"                     % "2.2.2"
-val kamonTestkit      = "io.kamon"    %% "kamon-testkit"                  % "2.2.2"
-val kamonCommon       = "io.kamon"    %% "kamon-instrumentation-common"   % "2.2.2"
+val kamonCore         = "io.kamon"    %% "kamon-core"                     % "2.2.3"
+val kamonTestkit      = "io.kamon"    %% "kamon-testkit"                  % "2.2.3"
+val kamonCommon       = "io.kamon"    %% "kamon-instrumentation-common"   % "2.2.3"
 
-val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.22.0-RC1"
-val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.22.0-RC1"
-val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.22.0-RC1"
+val server            = "org.http4s"  %%  "http4s-blaze-server"   % "0.23.0-RC1"
+val client            = "org.http4s"  %%  "http4s-blaze-client"   % "0.23.0-RC1"
+val dsl               = "org.http4s"  %%  "http4s-dsl"            % "0.23.0-RC1"
 
 
 lazy val root = (project in file("."))

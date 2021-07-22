@@ -16,22 +16,22 @@
 
 package kamon.http4s
 
-import java.net.ConnectException
-
+import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import kamon.Kamon
 import kamon.http4s.middleware.client.KamonSupport
+import kamon.tag.Lookups.{plain, plainLong}
 import kamon.testkit.TestSpanReporter
 import kamon.trace.Span
-import org.http4s.{HttpRoutes, Response}
 import org.http4s.client._
 import org.http4s.dsl.io._
 import org.http4s.implicits._
+import org.http4s.{HttpRoutes, Response}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
-import kamon.tag.Lookups.{plainLong, plain}
 
+import java.net.ConnectException
 
 class ClientInstrumentationSpec extends WordSpec
   with Matchers
@@ -57,7 +57,7 @@ class ClientInstrumentationSpec extends WordSpec
         client.expect[String]("/tracing/ok").unsafeRunSync() shouldBe "ok"
       }
 
-      eventually(timeout(2 seconds)) {
+      eventually(timeout(3 seconds)) {
         val span = testSpanReporter().nextSpan().value
 
         span.operationName shouldBe "/tracing/ok"
@@ -83,7 +83,7 @@ class ClientInstrumentationSpec extends WordSpec
         }
       }
 
-      eventually(timeout(2 seconds)) {
+      eventually(timeout(3 seconds)) {
         val span = testSpanReporter().nextSpan().value
         span.operationName shouldBe "/tracing/ok"
         span.kind shouldBe Span.Kind.Client
@@ -102,7 +102,7 @@ class ClientInstrumentationSpec extends WordSpec
         client.expect[String]("/tracing/not-found").attempt.unsafeRunSync().isLeft shouldBe true
       }
 
-      eventually(timeout(2 seconds)) {
+      eventually(timeout(3 seconds)) {
         val span = testSpanReporter().nextSpan().value
         span.operationName shouldBe "/tracing/not-found"
         span.kind shouldBe Span.Kind.Client
@@ -124,7 +124,7 @@ class ClientInstrumentationSpec extends WordSpec
         client.expect[String]("/tracing/error").attempt.unsafeRunSync().isLeft shouldBe true
       }
 
-      eventually(timeout(2 seconds)) {
+      eventually(timeout(3 seconds)) {
         val span = testSpanReporter().nextSpan().value
 
         span.operationName shouldBe "/tracing/error"
