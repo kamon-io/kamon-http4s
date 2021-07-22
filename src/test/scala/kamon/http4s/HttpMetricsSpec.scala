@@ -88,7 +88,7 @@ class HttpMetricsSpec extends WordSpec
     "track the response time with status code 2xx" in withServerAndClient { (server, client, serverMetrics) =>
       val requests: IO[Unit] = List.fill(100)(get("/tracing/ok")(server, client)).sequence_
 
-      val test = IO(serverMetrics.requestsSuccessful.value should be >= 0L)
+      val test = IO(serverMetrics.requestsSuccessful.value() should be >= 0L)
 
       requests *> test
     }
@@ -96,7 +96,7 @@ class HttpMetricsSpec extends WordSpec
     "track the response time with status code 4xx" in withServerAndClient { (server, client, serverMetrics) =>
       val requests: IO[Unit] = List.fill(100)(get("/tracing/not-found")(server, client).attempt).sequence_
 
-      val test = IO(serverMetrics.requestsClientError.value should be >= 0L)
+      val test = IO(serverMetrics.requestsClientError.value() should be >= 0L)
 
       requests *> test
     }
@@ -104,7 +104,7 @@ class HttpMetricsSpec extends WordSpec
     "track the response time with status code 5xx" in withServerAndClient { (server, client, serverMetrics) =>
       val requests: IO[Unit] = List.fill(100)(get("/tracing/error")(server, client).attempt).sequence_
 
-      val test = IO(serverMetrics.requestsServerError.value should be >= 0L)
+      val test = IO(serverMetrics.requestsServerError.value() should be >= 0L)
 
       requests *> test
     }
