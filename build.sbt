@@ -18,9 +18,11 @@ val kamonTestkit = "io.kamon" %% "kamon-testkit"                % "2.2.3"
 val kamonCommon  = "io.kamon" %% "kamon-instrumentation-common" % "2.2.3"
 
 def http4sDeps(version: String) = Seq(
-  "org.http4s" %% "http4s-blaze-server" % version % Provided,
-  "org.http4s" %% "http4s-blaze-client" % version % Provided,
-  "org.http4s" %% "http4s-dsl"          % version % Provided
+  "org.http4s" %% "http4s-client"       % version % Provided,
+  "org.http4s" %% "http4s-server"       % version % Provided,
+  "org.http4s" %% "http4s-blaze-client" % version % Test,
+  "org.http4s" %% "http4s-blaze-server" % version % Test,
+  "org.http4s" %% "http4s-dsl"          % version % Test
 )
 
 lazy val shared = Seq(
