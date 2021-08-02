@@ -6,11 +6,24 @@
 
 ### Getting Started
 
-The `kamon-http4s` module brings traces and metrics to your [http4s][4] based applications.
+The `kamon-http4s-<version>` module brings traces and metrics to your [http4s][4] based applications.
 
-Kamon <b>kamon-http4s</b> is currently available for Scala 2.12 and 2.13.
+It is currently available for Scala 2.12 and 2.13. The current version supports Kamon 2.2 and
+is published for http4s 0.22, 0.23 and 1.0.
 
-Supported releases and dependencies are shown below.
+| kamon | kamon-http4s  | status | jdk  | scala | http4s
+|:-----:|:------:|:------:|:----:|--------------:|-------
+| 2.2.x |  2.2.0 | stable | 8+ | 2.12, 2.13 | 0.22.x
+| 2.2.x |  2.2.0 | stable | 8+ | 2.12, 2.13 | 0.23.x
+| 2.2.x |  2.2.0 | stable | 8+ | 2.12, 2.13 | 1.0.x
+
+To get started with sbt, simply add the following to your `build.sbt` file, for instance for http4s 0.23:
+
+```scala
+libraryDependencies += "io.kamon" %% "kamon-http4s-0.23" % "2.2.0"
+```
+
+The releases and dependencies for the legacy module `kamon-http4s` (without http4s version) are shown below.
 
 | kamon-http4s  | status | jdk  | scala | http4s            
 |:------:|:------:|:----:|--------------:|-------
@@ -19,13 +32,6 @@ Supported releases and dependencies are shown below.
 |  2.0.0 | stable | 8+ | 2.11, 2.12 | 0.20.x
 |  2.0.1 | stable | 8+ | 2.12, 2.13 | 0.21.x
 
-
-To get started with SBT, simply add the following to your `build.sbt`
-file:
-
-```scala
-libraryDependencies += "io.kamon" %% "kamon-http4s" % "2.0.1"
-```
 
 ## Metrics and Tracing for http4s in 2 steps
 
