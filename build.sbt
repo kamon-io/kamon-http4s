@@ -22,12 +22,13 @@ def http4sDeps(version: String) = Seq(
   "org.http4s" %% "http4s-server"       % version % Provided,
   "org.http4s" %% "http4s-blaze-client" % version % Test,
   "org.http4s" %% "http4s-blaze-server" % version % Test,
-  "org.http4s" %% "http4s-dsl"          % version % Test
+  "org.http4s" %% "http4s-dsl"          % version % Test2
 )
 
 lazy val shared = Seq(
   scalaVersion := "2.13.6",
   crossScalaVersions := Seq("2.12.14", "2.13.6"),
+  publishTo := sonatypePublishToBundle.value,
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 12)) => Seq("-Ypartial-unification", "-language:higherKinds")
     case _             => "-language:higherKinds" :: Nil
