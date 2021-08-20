@@ -62,7 +62,7 @@ class HttpMetricsSpec extends WordSpec
    (srv, client, metrics).tupled.use(f.tupled).unsafeRunSync()
 
   private def get[F[_]: Concurrent](path: String)(server: Server, client: Client[F]): F[String] = {
-    client.expect[String](s"http://127.0.0.1:${server.address.getPort}$path")
+    client.expect[String](s"http://127.0.0.1:${server.address.port}$path")
   }
 
   "The HttpMetrics" should {

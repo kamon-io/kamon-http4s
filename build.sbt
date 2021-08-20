@@ -22,12 +22,13 @@ def http4sDeps(version: String) = Seq(
   "org.http4s" %% "http4s-server"       % version % Provided,
   "org.http4s" %% "http4s-blaze-client" % version % Test,
   "org.http4s" %% "http4s-blaze-server" % version % Test,
-  "org.http4s" %% "http4s-dsl"          % version % Test2
+  "org.http4s" %% "http4s-dsl"          % version % Test
 )
 
 lazy val shared = Seq(
   scalaVersion := "2.13.6",
   crossScalaVersions := Seq("2.12.14", "2.13.6"),
+  moduleName := name.value,
   publishTo := sonatypePublishToBundle.value,
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 12)) => Seq("-Ypartial-unification", "-language:higherKinds")
@@ -43,7 +44,7 @@ lazy val `kamon-http4s-0_22` = project
   .settings(
     shared,
     name := "kamon-http4s-0.22",
-    libraryDependencies ++= http4sDeps("0.22.1")
+    libraryDependencies ++= http4sDeps("0.22.2")
   )
 
 lazy val `kamon-http4s-0_23` = project
@@ -51,7 +52,7 @@ lazy val `kamon-http4s-0_23` = project
   .settings(
     shared,
     name := "kamon-http4s-0.23",
-    libraryDependencies ++= http4sDeps("0.23.0")
+    libraryDependencies ++= http4sDeps("0.23.1")
   )
 
 lazy val `kamon-http4s-1_0` = project
@@ -59,7 +60,7 @@ lazy val `kamon-http4s-1_0` = project
   .settings(
     shared,
     name := "kamon-http4s-1.0",
-    libraryDependencies ++= http4sDeps("1.0.0-M23")
+    libraryDependencies ++= http4sDeps("1.0.0-M24")
   )
 
 lazy val root = project
