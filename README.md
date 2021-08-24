@@ -1,7 +1,6 @@
 # Kamon http4s <img align="right" src="https://rawgit.com/kamon-io/Kamon/master/kamon-logo.svg" height="150px" style="padding-left: 20px"/>
-[![Build Status](https://travis-ci.org/kamon-io/kamon-http4s.svg?branch=master)](https://travis-ci.org/kamon-io/kamon-http4s)
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/kamon-io/Kamon?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.kamon/kamon-http4s_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.kamon/kamon-http4s_2.12)
+[![Discord](https://img.shields.io/discord/866301994074243132?label=Join%20the%20Comunity%20on%20Discord)](https://discord.gg/5JuYsDJ7au)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.kamon/kamon-http4s-0.23_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.kamon/kamon-http4s_2.12)
 
 
 ### Getting Started
@@ -13,9 +12,9 @@ is published for http4s 0.22, 0.23 and 1.0.
 
 | kamon | kamon-http4s  | status | jdk  | scala | http4s
 |:-----:|:------:|:------:|:----:|--------------:|-------
-| 2.2.x |  2.2.0 | stable | 8+ | 2.12, 2.13 | 0.22.x
-| 2.2.x |  2.2.0 | stable | 8+ | 2.12, 2.13 | 0.23.x
-| 2.2.x |  2.2.0 | stable | 8+ | 2.12, 2.13 | 1.0.x
+| 2.2.x |  2.2.1 | stable | 8+ | 2.12, 2.13 | 0.22.x
+| 2.2.x |  2.2.1 | stable | 8+ | 2.12, 2.13 | 0.23.x
+| 2.2.x |  2.2.1 | stable | 8+ | 2.12, 2.13 | 1.0.x
 
 To get started with sbt, simply add the following to your `build.sbt` file, for instance for http4s 0.23:
 
@@ -72,12 +71,11 @@ object GoogleService {
 ### Step 1: Add the Kamon Libraries
 ```scala
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-core" % "2.1.0",
-  "io.kamon" %% "kamon-system-metrics" % "2.1.0",
-  "io.kamon" %% "kamon-prometheus" % "2.1.0",
-  "io.kamon" %% "kamon-http4s" % "2.0.1",
-  "io.kamon" %% "kamon-zipkin" % "2.1.0",
-  "io.kamon" %% "kamon-jaeger" % "2.1.0"
+  "io.kamon" %% "kamon-core" % "2.2.3",
+  "io.kamon" %% "kamon-http4s-0.23" % "2.2.1",
+  "io.kamon" %% "kamon-prometheus" % "2.2.3",
+  "io.kamon" %% "kamon-zipkin" % "2.2.3",
+  "io.kamon" %% "kamon-jaeger" % "2.2.3"
 )
 ```
 
