@@ -12,14 +12,14 @@ is published for http4s 0.22, 0.23 and 1.0.
 
 | kamon | kamon-http4s  | status | jdk  | scala | http4s
 |:-----:|:------:|:------:|:----:|--------------:|-------
-| 2.2.x |  2.2.1 | stable | 8+ | 2.12, 2.13 | 0.22.x
-| 2.2.x |  2.2.1 | stable | 8+ | 2.12, 2.13 | 0.23.x
-| 2.2.x |  2.2.1 | stable | 8+ | 2.12, 2.13 | 1.0.x
+| 2.2.x |  2.2.2 | stable | 8+ | 2.12, 2.13 | 0.22.x
+| 2.2.x |  2.2.2 | stable | 8+ | 2.12, 2.13 | 0.23.x
+| 2.2.x |  2.2.2 | stable | 8+ | 2.12, 2.13 | 1.0.x
 
 To get started with sbt, simply add the following to your `build.sbt` file, for instance for http4s 0.23:
 
 ```scala
-libraryDependencies += "io.kamon" %% "kamon-http4s-0.23" % "2.2.0"
+libraryDependencies += "io.kamon" %% "kamon-http4s-0.23" % "2.2.2"
 ```
 
 The releases and dependencies for the legacy module `kamon-http4s` (without http4s version) are shown below.
