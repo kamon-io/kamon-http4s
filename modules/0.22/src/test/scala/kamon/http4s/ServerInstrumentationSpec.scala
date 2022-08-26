@@ -20,7 +20,7 @@ import cats.effect._
 import cats.implicits._
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.tag.Lookups.{plain, plainLong}
-import kamon.testkit.TestSpanReporter
+import kamon.testkit.{TestSpanReporter, InitAndStopKamonAfterAll}
 import kamon.trace.Span
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.blaze.server.BlazeServerBuilder
@@ -31,18 +31,20 @@ import org.http4s.server.Server
 import org.http4s.{Headers, HttpRoutes}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
+import org.scalatest.OptionValues
 import org.typelevel.ci.CIString
 
 import scala.concurrent.ExecutionContext
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
-class ServerInstrumentationSpec extends WordSpec
+class ServerInstrumentationSpec extends AnyWordSpec
   with Matchers
   with Eventually
   with SpanSugar
   with OptionValues
   with TestSpanReporter
-  with BeforeAndAfterAll {
+  with InitAndStopKamonAfterAll {
 
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
