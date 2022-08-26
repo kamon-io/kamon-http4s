@@ -51,7 +51,7 @@ class ClientInstrumentationSpec extends AnyWordSpec
 
   val client: Client[IO] = KamonSupport[IO](Client.fromHttpApp[IO](service.orNotFound))
 
-  "The Client instrumentation" should {    
+  "The Client instrumentation" should {
     "propagate the current context and generate a span inside an action and complete the ws request" in {
       val okSpan = Kamon.spanBuilder("ok-operation-span").start()
 
