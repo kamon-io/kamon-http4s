@@ -34,6 +34,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
 import org.typelevel.ci.CIString
+import kamon.Kamon
 
 class ServerInstrumentationSpec extends WordSpec
   with Matchers
@@ -42,6 +43,8 @@ class ServerInstrumentationSpec extends WordSpec
   with OptionValues
   with TestSpanReporter
   with BeforeAndAfterAll {
+
+  Kamon.init()
 
   val srv =
     BlazeServerBuilder[IO](global.compute)

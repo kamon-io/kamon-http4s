@@ -19,7 +19,6 @@ package kamon.http4s
 package middleware.client
 
 import cats.effect.{Sync, Resource}
-import cats.implicits._
 import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.context.Context

@@ -51,7 +51,7 @@ object KamonSupport {
     Resource.make(F.delay(requestHandler.requestReceived()))(h => F.delay(h.responseSent()))
 
   private def withContext[F[_]](requestHandler: RequestHandler)(implicit F: Sync[F]): Resource[F, Storage.Scope] =
-    Resource.make(F.delay(Kamon.storeContext(requestHandler.context)))( scope => F.delay(scope.close()))
+    Resource.make(F.delay{ Kamon.storeContext(requestHandler.context) } )( scope => F.delay(scope.close()))
 
 
   private def getHandler[F[_]](instrumentation: HttpServerInstrumentation)(request: Request[F])(implicit F: Sync[F]): Resource[F, RequestHandler] =
@@ -64,7 +64,12 @@ object KamonSupport {
   private def kamonServiceHandler[F[_]](requestHandler: RequestHandler,
                                         e: Either[Throwable, Option[Response[F]]],
                                        settings: HttpServerInstrumentation.Settings)
-                                       (implicit F: Sync[F]): F[Option[Response[F]]] =
+                                       (implicit F: Sync[F]): F[Option[Response[F]]] = {
+    // println("***********")
+    // println(settings)
+    // println(requestHandler.context)
+    // println(requestHandler.span)
+    // println(e)
     e match {
       case Left(e) =>
         F.delay {
@@ -85,5 +90,6 @@ object KamonSupport {
           Some(a)
         }
     }
+  }
 
 }

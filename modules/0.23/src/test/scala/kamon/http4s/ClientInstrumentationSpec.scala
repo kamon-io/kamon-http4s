@@ -41,6 +41,8 @@ class ClientInstrumentationSpec extends WordSpec
   with TestSpanReporter
   with BeforeAndAfterAll {
 
+  Kamon.init()
+
   val service = HttpRoutes.of[IO] {
       case GET -> Root / "tracing" / "ok" =>  Ok("ok")
       case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")

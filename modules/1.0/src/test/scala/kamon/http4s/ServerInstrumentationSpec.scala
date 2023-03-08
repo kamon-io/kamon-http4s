@@ -19,6 +19,7 @@ package kamon.http4s
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Concurrent, IO}
 import cats.implicits._
+import kamon.Kamon
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.tag.Lookups.{plain, plainLong}
 import kamon.testkit.TestSpanReporter
@@ -42,6 +43,8 @@ class ServerInstrumentationSpec extends WordSpec
   with OptionValues
   with TestSpanReporter
   with BeforeAndAfterAll {
+
+  Kamon.init()
 
   val srv =
     BlazeServerBuilder[IO](global.compute)

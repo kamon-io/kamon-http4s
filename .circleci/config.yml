@@ -1,0 +1,50 @@
+version: 2.1
+
+orbs:
+  codacy: codacy/base@10.1.0
+
+workflows:
+  version: 2
+
+  compile_deploy:
+    jobs:
+      - codacy/checkout_and_version:
+          write_sbt_version: true
+          context: CodacyAWS
+      - codacy/sbt_docker:
+          name: compile_and_test
+          steps:
+            - run:
+                name: Compile
+                command: sbt +test:compile
+            - run:
+                name: Run tests
+                command: sbt +test
+          setup_remote_docker: false
+          context: CodacyAWS
+          requires:
+            - codacy/checkout_and_version
+      - codacy/sbt_docker:
+          name: publish
+          steps:
+            - run:
+                name: Retrieve GPG keys
+                command: sbt retrieveGPGKeys
+            - run:
+                name: Publish to bundle
+                command: sbt +publishSigned
+            - run:
+                name: Release bundle to Sonatype
+                command: sbt sonatypeBundleRelease
+          setup_remote_docker: false
+          context: CodacyAWS
+          requires:
+            - compile_and_test
+          filters:
+            branches:
+              only:
+                - master
+      - codacy/tag_version:
+          context: CodacyAWS
+          requires:
+            - publish

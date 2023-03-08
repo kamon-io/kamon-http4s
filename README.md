@@ -8,11 +8,10 @@
 The `kamon-http4s-<version>` module brings traces and metrics to your [http4s][4] based applications.
 
 It is currently available for Scala 2.12 and 2.13. The current version supports Kamon 2.2 and
-is published for http4s 0.22, 0.23 and 1.0.
+is published for http4s 0.23 and 1.0.
 
 | kamon | kamon-http4s  | status | jdk  | scala | http4s
 |:-----:|:------:|:------:|:----:|--------------:|-------
-| 2.2.x |  2.2.2 | stable | 8+ | 2.12, 2.13 | 0.22.x
 | 2.2.x |  2.2.2 | stable | 8+ | 2.12, 2.13 | 0.23.x
 | 2.2.x |  2.2.2 | stable | 8+ | 2.12, 2.13 | 1.0.x
 

@@ -45,3 +45,4 @@ native/
 
 ### Metals ###
 .metals/
+/.bsp
