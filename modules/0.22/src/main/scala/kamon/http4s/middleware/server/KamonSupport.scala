@@ -28,60 +28,96 @@ import org.http4s.{HttpRoutes, Request, Response}
 
 object KamonSupport {
 
-  def apply[F[_]: Sync](service: HttpRoutes[F], interface: String, port: Int): HttpRoutes[F] = {
-    val httpServerConfig = Kamon.config().getConfig("kamon.instrumentation.http4s.server")
-    val instrumentation = HttpServerInstrumentation.from(httpServerConfig, "http4s.server", interface, port)
+  def apply[F[_]: Sync](
+      service: HttpRoutes[F],
+      interface: String,
+      port: Int
+  ): HttpRoutes[F] = {
+    val httpServerConfig =
+      Kamon.config().getConfig("kamon.instrumentation.http4s.server")
+    val instrumentation = HttpServerInstrumentation.from(
+      httpServerConfig,
+      "http4s.server",
+      interface,
+      port
+    )
 
     Kleisli(kamonService[F](service, instrumentation)(_))
   }
 
-
-  private def kamonService[F[_]](service: HttpRoutes[F], instrumentation: HttpServerInstrumentation)
-                                (request: Request[F])
-                                (implicit F: Sync[F]): OptionT[F, Response[F]] = OptionT {
-    getHandler(instrumentation)(request).use { handler =>
-      for {
-        resOrUnhandled  <- service(request).value.attempt
-        respWithContext <- kamonServiceHandler(handler, resOrUnhandled, instrumentation.settings)
-      } yield respWithContext
+  private def kamonService[F[_]](
+      service: HttpRoutes[F],
+      instrumentation: HttpServerInstrumentation
+  )(request: Request[F])(implicit F: Sync[F]): OptionT[F, Response[F]] =
+    OptionT {
+      getHandler(instrumentation)(request).use { handler =>
+        for {
+          resOrUnhandled <- service(request).value.attempt
+          respWithContext <- kamonServiceHandler(
+            handler,
+            resOrUnhandled,
+            instrumentation.settings
+          )
+        } yield respWithContext
+      }
     }
-  }
 
-  private def processRequest[F[_]](requestHandler: RequestHandler)(implicit F: Sync[F]): Resource[F, RequestHandler] =
-    Resource.make(F.delay(requestHandler.requestReceived()))(h => F.delay(h.responseSent()))
+  private def processRequest[F[_]](
+      requestHandler: RequestHandler
+  )(implicit F: Sync[F]): Resource[F, RequestHandler] =
+    Resource.make(F.delay(requestHandler.requestReceived()))(h =>
+      F.delay(h.responseSent())
+    )
 
-  private def withContext[F[_]](requestHandler: RequestHandler)(implicit F: Sync[F]): Resource[F, Storage.Scope] =
-    Resource.make(F.delay(Kamon.storeContext(requestHandler.context)))( scope => F.delay(scope.close()))
+  private def withContext[F[_]](
+      requestHandler: RequestHandler
+  )(implicit F: Sync[F]): Resource[F, Storage.Scope] =
+    Resource.make(F.delay(Kamon.storeContext(requestHandler.context)))(scope =>
+      F.delay(scope.close())
+    )
 
-
-  private def getHandler[F[_]](instrumentation: HttpServerInstrumentation)(request: Request[F])(implicit F: Sync[F]): Resource[F, RequestHandler] =
+  private def getHandler[F[_]](
+      instrumentation: HttpServerInstrumentation
+  )(request: Request[F])(implicit F: Sync[F]): Resource[F, RequestHandler] =
     for {
-      handler <- Resource.eval(F.delay(instrumentation.createHandler(buildRequestMessage(request))))
-      _       <- processRequest(handler)
-      _       <- withContext(handler)
+      handler <- Resource.eval(
+        F.delay(instrumentation.createHandler(buildRequestMessage(request)))
+      )
+      _ <- processRequest(handler)
+      _ <- withContext(handler)
     } yield handler
 
-  private def kamonServiceHandler[F[_]](requestHandler: RequestHandler,
-                                        e: Either[Throwable, Option[Response[F]]],
-                                       settings: HttpServerInstrumentation.Settings)
-                                       (implicit F: Sync[F]): F[Option[Response[F]]] =
+  private def kamonServiceHandler[F[_]](
+      requestHandler: RequestHandler,
+      e: Either[Throwable, Option[Response[F]]],
+      settings: HttpServerInstrumentation.Settings
+  )(implicit F: Sync[F]): F[Option[Response[F]]] =
     e match {
       case Left(e) =>
         F.delay {
           requestHandler.span.fail(e.getMessage)
-          Some(requestHandler.buildResponse(errorResponseBuilder, requestHandler.context))
+          Some(
+            requestHandler.buildResponse(
+              errorResponseBuilder,
+              requestHandler.context
+            )
+          )
         } *> F.raiseError(e)
       case Right(None) =>
         F.delay {
           requestHandler.span.name(settings.unhandledOperationName)
           val response: Response[F] = requestHandler.buildResponse[Response[F]](
-            notFoundResponseBuilder, requestHandler.context
+            notFoundResponseBuilder,
+            requestHandler.context
           )
           Some(response)
         }
       case Right(Some(response)) =>
         F.delay {
-          val a = requestHandler.buildResponse(getResponseBuilder(response), requestHandler.context)
+          val a = requestHandler.buildResponse(
+            getResponseBuilder(response),
+            requestHandler.context
+          )
           Some(a)
         }
     }

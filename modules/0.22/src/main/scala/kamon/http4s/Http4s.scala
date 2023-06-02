@@ -22,19 +22,24 @@ import kamon.Kamon
 import kamon.instrumentation.http.{HttpMessage, HttpOperationNameGenerator}
 
 object Http4s {
-  @volatile var nameGenerator: HttpOperationNameGenerator = nameGeneratorFromConfig(Kamon.config())
+  @volatile var nameGenerator: HttpOperationNameGenerator =
+    nameGeneratorFromConfig(Kamon.config())
 
-  private def nameGeneratorFromConfig(config: Config): HttpOperationNameGenerator = {
+  private def nameGeneratorFromConfig(
+      config: Config
+  ): HttpOperationNameGenerator = {
     val dynamic = new DynamicAccess(getClass.getClassLoader)
-    val nameGeneratorFQCN = config.getString("kamon.instrumentation.http4s.client.tracing.operations.name-generator")
-    dynamic.createInstanceFor[HttpOperationNameGenerator](nameGeneratorFQCN, Nil)
+    val nameGeneratorFQCN = config.getString(
+      "kamon.instrumentation.http4s.client.tracing.operations.name-generator"
+    )
+    dynamic
+      .createInstanceFor[HttpOperationNameGenerator](nameGeneratorFQCN, Nil)
   }
 
   Kamon.onReconfigure { newConfig =>
     nameGenerator = nameGeneratorFromConfig(newConfig)
   }
 }
-
 
 class DefaultNameGenerator extends HttpOperationNameGenerator {
 
@@ -45,18 +50,22 @@ class DefaultNameGenerator extends HttpOperationNameGenerator {
   private val localCache = TrieMap.empty[String, String]
   private val normalizePattern = """\$([^<]+)<[^>]+>""".r
 
-
   override def name(request: HttpMessage.Request): Option[String] = {
     Some(
-      localCache.getOrElseUpdate(s"${request.method}${request.path}", {
-        // Convert paths of form GET /foo/bar/$paramname<regexp>/blah to foo.bar.paramname.blah.get
-        val p = normalizePattern.replaceAllIn(request.path, "$1").replace('/', '.').dropWhile(_ == '.')
-        val normalisedPath = {
-          if (p.lastOption.exists(_ != '.')) s"$p."
-          else p
+      localCache.getOrElseUpdate(
+        s"${request.method}${request.path}", {
+          // Convert paths of form GET /foo/bar/$paramname<regexp>/blah to foo.bar.paramname.blah.get
+          val p = normalizePattern
+            .replaceAllIn(request.path, "$1")
+            .replace('/', '.')
+            .dropWhile(_ == '.')
+          val normalisedPath = {
+            if (p.lastOption.exists(_ != '.')) s"$p."
+            else p
+          }
+          s"$normalisedPath${request.method.toLowerCase(Locale.ENGLISH)}"
         }
-        s"$normalisedPath${request.method.toLowerCase(Locale.ENGLISH)}"
-      })
+      )
     )
   }
 }

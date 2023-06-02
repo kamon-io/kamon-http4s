@@ -36,77 +36,98 @@ import org.scalatest.OptionValues
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-class HttpMetricsSpec extends AnyWordSpec
-  with Matchers
-  with Eventually
-  with SpanSugar
-  with InstrumentInspection.Syntax
-  with OptionValues
-  with InitAndStopKamonAfterAll
- {
+class HttpMetricsSpec
+    extends AnyWordSpec
+    with Matchers
+    with Eventually
+    with SpanSugar
+    with InstrumentInspection.Syntax
+    with OptionValues
+    with InitAndStopKamonAfterAll {
 
   val srv =
     BlazeServerBuilder[IO](global.compute)
       .bindLocal(43567)
-      .withHttpApp(KamonSupport(HttpRoutes.of[IO] {
-        case GET -> Root / "tracing" / "ok" =>  Ok("ok")
-        case GET -> Root / "tracing" / "not-found"  => NotFound("not-found")
-        case GET -> Root / "tracing" / "error"  => InternalServerError("This page will generate an error!")
-      }, "/127.0.0.1", 43567).orNotFound)
+      .withHttpApp(
+        KamonSupport(
+          HttpRoutes.of[IO] {
+            case GET -> Root / "tracing" / "ok"        => Ok("ok")
+            case GET -> Root / "tracing" / "not-found" => NotFound("not-found")
+            case GET -> Root / "tracing" / "error" =>
+              InternalServerError("This page will generate an error!")
+          },
+          "/127.0.0.1",
+          43567
+        ).orNotFound
+      )
       .resource
 
   val client =
     BlazeClientBuilder[IO](global.compute).withMaxTotalConnections(10).resource
 
-   val metrics =
-    Resource.eval(IO(HttpServerMetrics.of("http4s.server", "/127.0.0.1", 43567)))
+  val metrics =
+    Resource.eval(
+      IO(HttpServerMetrics.of("http4s.server", "/127.0.0.1", 43567))
+    )
 
+  def withServerAndClient[A](
+      f: (Server, Client[IO], HttpServerMetrics.HttpServerInstruments) => IO[A]
+  ): A =
+    (srv, client, metrics).tupled.use(f.tupled).unsafeRunSync()
 
-  def withServerAndClient[A](f: (Server, Client[IO], HttpServerMetrics.HttpServerInstruments) => IO[A]): A =
-   (srv, client, metrics).tupled.use(f.tupled).unsafeRunSync()
-
-  private def get[F[_]: Concurrent](path: String)(server: Server, client: Client[F]): F[String] = {
+  private def get[F[_]: Concurrent](
+      path: String
+  )(server: Server, client: Client[F]): F[String] = {
     client.expect[String](s"http://127.0.0.1:${server.address.getPort}$path")
   }
 
   "The HttpMetrics" should {
 
-    "track the total of active requests" in withServerAndClient { (server, client, serverMetrics) =>
+    "track the total of active requests" in withServerAndClient {
+      (server, client, serverMetrics) =>
+        val requests = List
+          .fill(100) {
+            get("/tracing/ok")(server, client)
+          }
+          .parSequence_
 
-      val requests = List
-        .fill(100) {
-          get("/tracing/ok")(server, client)
-        }.parSequence_
-
-      val test = IO {
-        serverMetrics.activeRequests.distribution().max should be > 1L
-        serverMetrics.activeRequests.distribution().min shouldBe 0L
-      }
-      requests *> test
+        val test = IO {
+          serverMetrics.activeRequests.distribution().max should be > 1L
+          serverMetrics.activeRequests.distribution().min shouldBe 0L
+        }
+        requests *> test
     }
 
-    "track the response time with status code 2xx" in withServerAndClient { (server, client, serverMetrics) =>
-      val requests: IO[Unit] = List.fill(100)(get("/tracing/ok")(server, client)).sequence_
+    "track the response time with status code 2xx" in withServerAndClient {
+      (server, client, serverMetrics) =>
+        val requests: IO[Unit] =
+          List.fill(100)(get("/tracing/ok")(server, client)).sequence_
 
-      val test = IO(serverMetrics.requestsSuccessful.value() should be >= 0L)
+        val test = IO(serverMetrics.requestsSuccessful.value() should be >= 0L)
 
-      requests *> test
+        requests *> test
     }
 
-    "track the response time with status code 4xx" in withServerAndClient { (server, client, serverMetrics) =>
-      val requests: IO[Unit] = List.fill(100)(get("/tracing/not-found")(server, client).attempt).sequence_
+    "track the response time with status code 4xx" in withServerAndClient {
+      (server, client, serverMetrics) =>
+        val requests: IO[Unit] = List
+          .fill(100)(get("/tracing/not-found")(server, client).attempt)
+          .sequence_
 
-      val test = IO(serverMetrics.requestsClientError.value() should be >= 0L)
+        val test = IO(serverMetrics.requestsClientError.value() should be >= 0L)
 
-      requests *> test
+        requests *> test
     }
 
-    "track the response time with status code 5xx" in withServerAndClient { (server, client, serverMetrics) =>
-      val requests: IO[Unit] = List.fill(100)(get("/tracing/error")(server, client).attempt).sequence_
+    "track the response time with status code 5xx" in withServerAndClient {
+      (server, client, serverMetrics) =>
+        val requests: IO[Unit] = List
+          .fill(100)(get("/tracing/error")(server, client).attempt)
+          .sequence_
 
-      val test = IO(serverMetrics.requestsServerError.value() should be >= 0L)
+        val test = IO(serverMetrics.requestsServerError.value() should be >= 0L)
 
-      requests *> test
+        requests *> test
     }
   }
 }
