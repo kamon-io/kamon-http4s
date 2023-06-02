@@ -46,7 +46,7 @@ class HttpMetricsSpec
     with InitAndStopKamonAfterAll {
 
   val srv =
-    BlazeServerBuilder[IO](global.compute)
+    BlazeServerBuilder[IO]
       .bindLocal(43567)
       .withHttpApp(
         KamonSupport(
@@ -62,8 +62,7 @@ class HttpMetricsSpec
       )
       .resource
 
-  val client =
-    BlazeClientBuilder[IO](global.compute).withMaxTotalConnections(10).resource
+  val client = BlazeClientBuilder[IO].withMaxTotalConnections(10).resource
 
   val metrics =
     Resource.eval(
@@ -95,7 +94,7 @@ class HttpMetricsSpec
           serverMetrics.activeRequests.distribution().max should be > 1L
           serverMetrics.activeRequests.distribution().min shouldBe 0L
         }
-        requests *> test
+        requests *> IO.sleep(2.seconds) *> test
     }
 
     "track the response time with status code 2xx" in withServerAndClient {
