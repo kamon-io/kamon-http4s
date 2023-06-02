@@ -21,7 +21,7 @@ import cats.effect.{IO, Resource}
 import kamon.Kamon
 import kamon.http4s.middleware.client.KamonSupport
 import kamon.tag.Lookups.{plain, plainLong}
-import kamon.testkit.TestSpanReporter
+import kamon.testkit.{TestSpanReporter, InitAndStopKamonAfterAll}
 import kamon.trace.Span
 import org.http4s.client._
 import org.http4s.dsl.io._
@@ -29,17 +29,19 @@ import org.http4s.implicits._
 import org.http4s.{HttpRoutes, Response}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, OptionValues, WordSpec}
+import org.scalatest.OptionValues
 
 import java.net.ConnectException
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
-class ClientInstrumentationSpec extends WordSpec
+class ClientInstrumentationSpec extends AnyWordSpec
   with Matchers
   with Eventually
   with SpanSugar
   with OptionValues
   with TestSpanReporter
-  with BeforeAndAfterAll {
+  with InitAndStopKamonAfterAll {
 
   val service = HttpRoutes.of[IO] {
       case GET -> Root / "tracing" / "ok" =>  Ok("ok")

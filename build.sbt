@@ -12,10 +12,12 @@
  * and limitations under the License.
  * =========================================================================================
  */
+val kamonVersion = "2.5.7"
+val kamonCore    = "io.kamon" %% "kamon-core"                   % kamonVersion
+val kamonTestkit = "io.kamon" %% "kamon-testkit"                % kamonVersion
+val kamonCommon  = "io.kamon" %% "kamon-instrumentation-common" % kamonVersion
 
-val kamonCore    = "io.kamon" %% "kamon-core"                   % "2.2.3"
-val kamonTestkit = "io.kamon" %% "kamon-testkit"                % "2.2.3"
-val kamonCommon  = "io.kamon" %% "kamon-instrumentation-common" % "2.2.3"
+val scalatestLocal = "org.scalatest"    %% "scalatest"       % "3.2.12"
 
 def http4sDeps(version: String) = Seq(
   "org.http4s" %% "http4s-client"       % version % Provided,
@@ -26,17 +28,18 @@ def http4sDeps(version: String) = Seq(
 )
 
 lazy val shared = Seq(
-  scalaVersion := "2.13.6",
-  crossScalaVersions := Seq("2.12.14", "2.13.6"),
+  scalaVersion := "2.13.8",
+  crossScalaVersions := Seq("2.12.14", "2.13.8"),
   moduleName := name.value,
   publishTo := sonatypePublishToBundle.value,
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 12)) => Seq("-Ypartial-unification", "-language:higherKinds")
+    case Some((3, _)) => Seq("-source:3.0-migration", "-Xtarget:8")
     case _             => "-language:higherKinds" :: Nil
   }),
   libraryDependencies ++=
     compileScope(kamonCore, kamonCommon) ++
-      testScope(scalatest, kamonTestkit, logbackClassic)
+      testScope(scalatestLocal, kamonTestkit, logbackClassic)
 )
 
 lazy val `kamon-http4s-0_22` = project
@@ -52,7 +55,8 @@ lazy val `kamon-http4s-0_23` = project
   .settings(
     shared,
     name := "kamon-http4s-0.23",
-    libraryDependencies ++= http4sDeps("0.23.1")
+    crossScalaVersions += "3.1.3",
+    libraryDependencies ++= http4sDeps("0.23.12")
   )
 
 lazy val `kamon-http4s-1_0` = project
@@ -60,7 +64,8 @@ lazy val `kamon-http4s-1_0` = project
   .settings(
     shared,
     name := "kamon-http4s-1.0",
-    libraryDependencies ++= http4sDeps("1.0.0-M24")
+    crossScalaVersions += "3.1.3",
+    libraryDependencies ++= http4sDeps("1.0.0-M35")
   )
 
 lazy val root = project

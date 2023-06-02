@@ -34,6 +34,9 @@ project/plugins/project/
 .cache-tests
 bin/
 
+# VsCode
+.vscode/
+
 _site
 
 # Default sigar library provision location.
@@ -45,3 +48,4 @@ native/
 
 ### Metals ###
 .metals/
+metals.sbt
