@@ -14,7 +14,6 @@
  * =========================================================================================
  */
 
-
 package kamon.http4s
 package middleware.client
 
@@ -31,42 +30,49 @@ object KamonSupport {
 
   private var _instrumentation = instrumentation(Kamon.config())
 
-  private def instrumentation(kamonConfig: Config): HttpClientInstrumentation = {
-    val httpClientConfig = kamonConfig.getConfig("kamon.instrumentation.http4s.client")
+  private def instrumentation(
+      kamonConfig: Config
+  ): HttpClientInstrumentation = {
+    val httpClientConfig =
+      kamonConfig.getConfig("kamon.instrumentation.http4s.client")
     HttpClientInstrumentation.from(httpClientConfig, "http4s.client")
   }
 
-  Kamon.onReconfigure(newConfig => _instrumentation = instrumentation(newConfig))
+  Kamon.onReconfigure(newConfig =>
+    _instrumentation = instrumentation(newConfig)
+  )
 
-  def apply[F[_]](underlying: Client[F])(implicit F: Sync[F]): Client[F] = Client { request =>
-    // this needs to run on the same thread as the caller, so can't be suspended in F
-    val ctx = Kamon.currentContext()
-    kamonClient(underlying)(request)(ctx)(_instrumentation)
-  }
+  def apply[F[_]](underlying: Client[F])(implicit F: Sync[F]): Client[F] =
+    Client { request =>
+      // this needs to run on the same thread as the caller, so can't be suspended in F
+      val ctx = Kamon.currentContext()
+      kamonClient(underlying)(request)(ctx)(_instrumentation)
+    }
 
-
-  private def kamonClient[F[_]](underlying: Client[F])
-                               (request: Request[F])
-                               (ctx: Context)
-                               (instrumentation: HttpClientInstrumentation)
-                               (implicit F:Sync[F]): Resource[F, Response[F]] =
+  private def kamonClient[F[_]](
+      underlying: Client[F]
+  )(request: Request[F])(ctx: Context)(
+      instrumentation: HttpClientInstrumentation
+  )(implicit F: Sync[F]): Resource[F, Response[F]] =
     for {
-      requestHandler  <- Resource.eval(F.delay(instrumentation.createHandler(getRequestBuilder(request), ctx)))
-      response        <- underlying.run(requestHandler.request).attempt
+      requestHandler <- Resource.eval(
+        F.delay(instrumentation.createHandler(getRequestBuilder(request), ctx))
+      )
+      response <- underlying.run(requestHandler.request).attempt
       trackedResponse <- Resource.eval(handleResponse(response, requestHandler))
     } yield trackedResponse
 
   def handleResponse[F[_]](
-                       response: Either[Throwable, Response[F]],
-                       requestHandler: HttpClientInstrumentation.RequestHandler[Request[F]],
-                     )(implicit F:Sync[F]): F[Response[F]] =
-      response match {
-        case Right(res) =>
-          requestHandler.processResponse(getResponseBuilder(res))
-          F.delay(res)
-        case Left(error) =>
-          requestHandler.span.fail(error).finish()
-          F.raiseError(error)
-      }
+      response: Either[Throwable, Response[F]],
+      requestHandler: HttpClientInstrumentation.RequestHandler[Request[F]]
+  )(implicit F: Sync[F]): F[Response[F]] =
+    response match {
+      case Right(res) =>
+        requestHandler.processResponse(getResponseBuilder(res))
+        F.delay(res)
+      case Left(error) =>
+        requestHandler.span.fail(error).finish()
+        F.raiseError(error)
+    }
 
 }
