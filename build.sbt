@@ -57,7 +57,7 @@ lazy val `kamon-http4s-0_23` = project
   .settings(
     shared,
     name := "kamon-http4s-0.23",
-    crossScalaVersions += "3.1.3",
+    crossScalaVersions += "3.3.0",
     libraryDependencies ++= http4sDeps("0.23.19", "0.23.14")
   )
 
@@ -66,7 +66,7 @@ lazy val `kamon-http4s-1_0` = project
   .settings(
     shared,
     name := "kamon-http4s-1.0",
-    crossScalaVersions += "3.1.3",
+    crossScalaVersions := Seq("2.13.8", "3.3.0"),
     libraryDependencies ++= http4sDeps("1.0.0-M38", "1.0.0-M38")
   )
 
