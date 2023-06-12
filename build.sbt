@@ -12,6 +12,8 @@
  * and limitations under the License.
  * =========================================================================================
  */
+import xerial.sbt.Sonatype._
+
 val kamonVersion = "2.6.1"
 val kamonCore = "io.kamon" %% "kamon-core" % kamonVersion
 val kamonTestkit = "io.kamon" %% "kamon-testkit" % kamonVersion
@@ -41,7 +43,22 @@ lazy val shared = Seq(
   libraryDependencies ++= Seq(kamonCore, kamonCommon) ++ Seq(
     scalatestLocal,
     kamonTestkit
-  ).map(_ % Test)
+  ).map(_ % Test),
+  publishMavenStyle := true,
+  licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
+  homepage := Some(url("https://kamon.io")),
+  scmInfo := Some(
+    ScmInfo(
+      url("https://github.com/kamon-io/kamon-http4s"),
+      "scm:git@github.com:kamon-io/kamon-http4s.git"
+    )
+  ),
+  developers := List(
+    Developer(id="ivantopo", name="Ivan Topolnjak", url=url("https://twitter.com/ivantopo"), email=""),
+    Developer(id="dpsoft", name="Diego Parra", url=url("https://twitter.com/dpsoft"), email=""),
+    Developer(id="vaslabs", name="Vasilis Nicolaou", url=url("https://github.com/vaslabs"), email=""),
+    Developer(id="jchapuis", name="Jonas Chapuis", url=url("https://github.com/jchapuis"), email="")
+  )
 )
 
 lazy val `kamon-http4s-0_22` = project
