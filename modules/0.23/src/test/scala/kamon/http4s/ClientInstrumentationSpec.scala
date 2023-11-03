@@ -52,7 +52,10 @@ class ClientInstrumentationSpec
   }
 
   val client: Client[IO] =
-    KamonSupport[IO](Client.fromHttpApp[IO](service.orNotFound))
+    KamonSupport[IO](
+      Client.fromHttpApp[IO](service.orNotFound),
+      "my-service-name"
+    )
 
   "The Client instrumentation" should {
     "propagate the current context and generate a span inside an action and complete the ws request" in {
@@ -67,7 +70,7 @@ class ClientInstrumentationSpec
 
         span.operationName shouldBe "/tracing/ok"
         span.kind shouldBe Span.Kind.Client
-        span.metricTags.get(plain("component")) shouldBe "http4s.client"
+        span.metricTags.get(plain("component")) shouldBe "my-service-name"
         span.metricTags.get(plain("http.method")) shouldBe "GET"
         span.metricTags.get(plainLong("http.status_code")) shouldBe 200
         span.metricTags.get(
@@ -100,7 +103,7 @@ class ClientInstrumentationSpec
         val span = testSpanReporter().nextSpan().value
         span.operationName shouldBe "/tracing/ok"
         span.kind shouldBe Span.Kind.Client
-        span.metricTags.get(plain("component")) shouldBe "http4s.client"
+        span.metricTags.get(plain("component")) shouldBe "my-service-name"
         span.metricTags.get(plain("http.method")) shouldBe "GET"
         span.hasError shouldBe true
 
@@ -123,7 +126,7 @@ class ClientInstrumentationSpec
         val span = testSpanReporter().nextSpan().value
         span.operationName shouldBe "/tracing/not-found"
         span.kind shouldBe Span.Kind.Client
-        span.metricTags.get(plain("component")) shouldBe "http4s.client"
+        span.metricTags.get(plain("component")) shouldBe "my-service-name"
         span.metricTags.get(plain("http.method")) shouldBe "GET"
         span.metricTags.get(plainLong("http.status_code")) shouldBe 404
         span.metricTags.get(
@@ -150,7 +153,7 @@ class ClientInstrumentationSpec
 
         span.operationName shouldBe "/tracing/error"
         span.kind shouldBe Span.Kind.Client
-        span.metricTags.get(plain("component")) shouldBe "http4s.client"
+        span.metricTags.get(plain("component")) shouldBe "my-service-name"
         span.metricTags.get(plain("http.method")) shouldBe "GET"
         span.hasError shouldBe true
         span.metricTags.get(plainLong("http.status_code")) shouldBe 500

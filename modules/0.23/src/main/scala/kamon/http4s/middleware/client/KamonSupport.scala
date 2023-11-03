@@ -28,26 +28,34 @@ import org.http4s.client.Client
 
 object KamonSupport {
 
-  private var _instrumentation = instrumentation(Kamon.config())
+  private val defaultComponentName = "http4s.client"
+  private var _instrumentation =
+    instrumentation(Kamon.config(), defaultComponentName)
 
   private def instrumentation(
-      kamonConfig: Config
+      kamonConfig: Config,
+      componentName: String = "http4s.client"
   ): HttpClientInstrumentation = {
     val httpClientConfig =
       kamonConfig.getConfig("kamon.instrumentation.http4s.client")
-    HttpClientInstrumentation.from(httpClientConfig, "http4s.client")
+    HttpClientInstrumentation.from(httpClientConfig, componentName)
   }
 
-  Kamon.onReconfigure(newConfig =>
-    _instrumentation = instrumentation(newConfig)
-  )
-
   def apply[F[_]](underlying: Client[F])(implicit F: Sync[F]): Client[F] =
+    this(underlying, defaultComponentName)
+
+  def apply[F[_]](underlying: Client[F], componentName: String)(implicit
+      F: Sync[F]
+  ): Client[F] = {
+    Kamon.onReconfigure(newConfig =>
+      _instrumentation = instrumentation(newConfig, componentName)
+    )
     Client { request =>
       // this needs to run on the same thread as the caller, so can't be suspended in F
       val ctx = Kamon.currentContext()
       kamonClient(underlying)(request)(ctx)(_instrumentation)
     }
+  }
 
   private def kamonClient[F[_]](
       underlying: Client[F]
